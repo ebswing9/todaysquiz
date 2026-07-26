@@ -21,17 +21,15 @@
       <span id="hud-streak-icon"></span>
       <span id="hud-streak-num">0일 연속</span>
     </span>
-  </div>
-  <div style="display:flex; gap:6px;">
     <button class="hud-crown-btn" id="btn-open-top5" title="TOP 5">👑</button>
-    <button class="hud-logout" id="btn-logout">로그아웃</button>
   </div>
+  <button class="hud-logout" id="btn-logout">로그아웃</button>
 </div>
 
 <!-- 1. 로그인 화면 -->
 <div id="login-view" class="view">
   <div class="card">
-    <h2>🎯 오늘의 퀴즈</h2>
+    <h2>🧩 오늘의 퀴즈</h2>
     <input id="student-id" type="number" placeholder="번호" min="1"/>
     <input id="student-pw" type="password" placeholder="비밀번호"/>
     <button id="btn-login">입장</button>
@@ -53,6 +51,8 @@
     <!-- 2-2. 공개됨, 제출 전 -->
     <div id="state-revealed-wait" class="hidden">
       <div class="quest-card">
+        <div class="quest-label">오늘의 퀴즈</div>
+        <img id="q-image-wait" class="quest-image hidden" />
         <div class="quest-question" id="q-text-wait"></div>
       </div>
       <p class="countdown-text" id="countdown-open">제출 시작을 기다려주세요.</p>
@@ -61,17 +61,34 @@
     <!-- 2-3. 제출 가능 -->
     <div id="state-open" class="hidden">
       <div class="quest-card">
+        <div class="quest-label">오늘의 퀴즈</div>
+        <img id="q-image-open" class="quest-image hidden" />
         <div class="quest-question" id="q-text-open"></div>
-        <div id="open-input-area" style="margin-top:12px;"></div>
-        <p class="retry-hint" id="retry-hint"></p>
+
+        <!-- 아직 제출 안 했거나, "답 바꾸기"를 누른 경우: 입력 폼 -->
+        <div id="open-edit-area">
+          <div id="open-input-area" style="margin-top:12px;"></div>
+          <div style="text-align:center;"><span class="retry-badge" id="retry-hint"></span></div>
+          <button id="btn-submit-answer">제출</button>
+        </div>
+
+        <!-- 이미 제출한 경우: 제출 요약 화면 -->
+        <div id="open-submitted-area" class="hidden">
+          <div class="answer-summary-card">
+            <div class="as-label">내가 제출한 답</div>
+            <div class="as-answer" id="submitted-answer-text"></div>
+            <div class="retry-badge" id="retry-hint-2"></div>
+          </div>
+          <button class="secondary" id="btn-edit-answer">✏️ 다른 답으로 다시 제출</button>
+        </div>
       </div>
-      <button id="btn-submit-answer">제출</button>
-      <p id="submit-status" class="hint-text"></p>
     </div>
 
     <!-- 2-4. 마감 -->
     <div id="state-closed" class="hidden">
       <div class="quest-card">
+        <div class="quest-label">오늘의 퀴즈</div>
+        <img id="q-image-closed" class="quest-image hidden" />
         <div class="quest-question" id="q-text-closed"></div>
         <div id="closed-my-answer" class="hint-text"></div>
         <div id="answer-key-box" class="answer-key-box hidden">
@@ -84,9 +101,23 @@
       <div class="result-summary" id="result-summary">
         <div id="result-correct-text"></div>
         <div class="rs-points" id="result-points"></div>
+        <div class="hint-text" id="result-retry-info" style="text-align:center;"></div>
       </div>
     </div>
 
+  </div>
+</div>
+
+<!-- 제출 완료 확인 모달 -->
+<div id="submit-modal" class="modal hidden">
+  <div class="modal-box">
+    <h3 id="submit-modal-title">✅ 제출 완료!</h3>
+    <div class="answer-summary-card">
+      <div class="as-label">내가 제출한 답</div>
+      <div class="as-answer" id="submit-modal-answer"></div>
+      <div class="retry-badge" id="submit-modal-retry"></div>
+    </div>
+    <button id="btn-submit-modal-close">확인</button>
   </div>
 </div>
 
@@ -115,6 +146,18 @@ let myAnswerEntry = null;
 let streakBadges = null;
 let selectedChoice = null;
 let lastRenderedState = null;
+let forceEditMode = false;
+
+function setQuestImage(elId) {
+  const img = document.getElementById(elId);
+  if (currentMeta && currentMeta.questionImageData) {
+    img.src = currentMeta.questionImageData;
+    img.classList.remove("hidden");
+  } else {
+    img.classList.add("hidden");
+    img.removeAttribute("src");
+  }
+}
 
 function showView(id) {
   document.querySelectorAll(".view").forEach(v => v.classList.add("hidden"));
@@ -195,6 +238,7 @@ function subscribeToDate(dateStr) {
   currentDate = dateStr;
   selectedChoice = null;
   lastRenderedState = null;
+  forceEditMode = false;
 
   if (unsubMeta) db.ref(`${PATH.QUIZZES}/${currentDate}/meta`).off("value", unsubMeta);
   if (unsubAnswerKey) db.ref(`${PATH.QUIZZES}/${currentDate}/answerKey`).off("value", unsubAnswerKey);
@@ -251,6 +295,7 @@ function render() {
   } else if (state === QUIZ_STATE.REVEALED_WAIT) {
     showQuizState("state-revealed-wait");
     document.getElementById("q-text-wait").innerText = currentMeta.questionText || "";
+    setQuestImage("q-image-wait");
     renderCountdown("countdown-open", currentMeta.openAt, "제출 시작을 기다려주세요.");
   } else if (state === QUIZ_STATE.OPEN) {
     showQuizState("state-open");
@@ -276,22 +321,33 @@ function renderCountdown(elId, targetMs, suffix) {
 
 function renderOpenState() {
   document.getElementById("q-text-open").innerText = currentMeta.questionText || "";
+  setQuestImage("q-image-open");
 
   const attemptCount = myAnswerEntry?.attemptCount || 0;
   const retryLimit = currentMeta.retryLimit;
   const limitReached = retryLimit != null && attemptCount >= retryLimit;
+  const hasSubmitted = !!(myAnswerEntry && myAnswerEntry.currentAnswer);
+  const showEditForm = !hasSubmitted || forceEditMode;
+
+  document.getElementById("open-edit-area").classList.toggle("hidden", !showEditForm);
+  document.getElementById("open-submitted-area").classList.toggle("hidden", showEditForm);
+
+  if (!showEditForm) {
+    document.getElementById("submitted-answer-text").innerText = myAnswerEntry.currentAnswer;
+    document.getElementById("retry-hint-2").innerText = retryLimit != null
+      ? (limitReached ? "더 이상 제출할 수 없습니다." : `남은 제출 횟수: ${retryLimit - attemptCount}회`)
+      : "제출 횟수 제한 없음";
+    document.getElementById("btn-edit-answer").classList.toggle("hidden", limitReached);
+    return;
+  }
 
   const inputArea = document.getElementById("open-input-area");
   const retryHint = document.getElementById("retry-hint");
   const submitBtn = document.getElementById("btn-submit-answer");
 
-  if (retryLimit != null) {
-    retryHint.innerText = limitReached
-      ? ""
-      : `남은 제출 횟수: ${retryLimit - attemptCount}회`;
-  } else {
-    retryHint.innerText = "";
-  }
+  retryHint.innerText = retryLimit != null
+    ? (limitReached ? "더 이상 제출할 수 없습니다." : `남은 제출 횟수: ${retryLimit - attemptCount}회`)
+    : "제출 횟수 제한 없음 (자유롭게 다시 제출 가능)";
 
   // 입력 UI를 매번 새로 그리면 타이핑 중 커서가 튀므로, 최초 1회만 그림
   if (lastRenderedState !== "OPEN_" + currentMeta.type) {
@@ -334,32 +390,34 @@ function renderOpenState() {
   submitBtn.innerText = limitReached ? "더 이상 제출할 수 없습니다." : "제출";
 }
 
-document.getElementById("btn-submit-answer").addEventListener("click", async () => {
-  const status = document.getElementById("submit-status");
-  status.innerText = "";
+document.getElementById("btn-edit-answer").addEventListener("click", () => {
+  forceEditMode = true;
+  render();
+});
 
+document.getElementById("btn-submit-answer").addEventListener("click", async () => {
   let answer = "";
   if (currentMeta.type === QUESTION_TYPE.CHOICE) {
     answer = selectedChoice || "";
   } else {
     answer = (document.getElementById("short-answer-input")?.value || "").trim();
   }
-
-  if (!answer) { status.innerText = "답을 입력하거나 선택해주세요."; return; }
+  if (!answer) { alert("답을 입력하거나 선택해주세요."); return; }
 
   const retryLimit = currentMeta.retryLimit;
   const attemptCount = myAnswerEntry?.attemptCount || 0;
   if (retryLimit != null && attemptCount >= retryLimit) {
-    status.innerText = "더 이상 제출할 수 없습니다.";
+    alert("더 이상 제출할 수 없습니다.");
     return;
   }
 
   const isCorrectNow = isAnswerCorrect(currentAnswerKey, answer);
   const answerRef = db.ref(`${PATH.QUIZZES}/${currentDate}/answers/${myId}`);
+  const newAttemptCount = attemptCount + 1;
 
   await answerRef.update({
     currentAnswer: answer,
-    attemptCount: attemptCount + 1
+    attemptCount: newAttemptCount
   });
 
   if (isCorrectNow) {
@@ -374,11 +432,23 @@ document.getElementById("btn-submit-answer").addEventListener("click", async () 
     await answerRef.update({ correctRank: null, correctAt: null });
   }
 
-  status.innerText = "제출 완료!";
+  forceEditMode = false;
+
+  const limitReachedNow = retryLimit != null && newAttemptCount >= retryLimit;
+  document.getElementById("submit-modal-answer").innerText = answer;
+  document.getElementById("submit-modal-retry").innerText = retryLimit != null
+    ? (limitReachedNow ? "더 이상 제출할 수 없습니다." : `남은 제출 횟수: ${retryLimit - newAttemptCount}회`)
+    : "제출 횟수 제한 없음 (언제든 다시 제출 가능)";
+  document.getElementById("submit-modal").classList.remove("hidden");
+});
+
+document.getElementById("btn-submit-modal-close").addEventListener("click", () => {
+  document.getElementById("submit-modal").classList.add("hidden");
 });
 
 function renderClosedState() {
   document.getElementById("q-text-closed").innerText = currentMeta.questionText || "";
+  setQuestImage("q-image-closed");
 
   const myAnswer = myAnswerEntry?.currentAnswer;
   document.getElementById("closed-my-answer").innerText = myAnswer
@@ -410,6 +480,12 @@ function renderClosedState() {
   } else {
     pointsText.innerText = "채점 중...";
   }
+
+  const attemptCount = myAnswerEntry?.attemptCount || 0;
+  const retryLimit = currentMeta.retryLimit;
+  document.getElementById("result-retry-info").innerText = retryLimit != null
+    ? `제출 횟수: ${attemptCount}/${retryLimit}회`
+    : `제출 횟수: ${attemptCount}회 (무제한)`;
 }
 
 /* ---------------------------------------------------------

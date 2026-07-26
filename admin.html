@@ -27,7 +27,7 @@
 <div id="admin-view" class="view hidden">
   <div class="card wide">
     <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;">
-      <h2 style="margin:0;">🛠 오늘의 퀴즈 · 관리자 패널</h2>
+      <h2 style="margin:0;">[관리자 모드]</h2>
       <button id="btn-admin-logout" class="secondary small-btn" style="width:auto;">로그아웃</button>
     </div>
 
@@ -67,6 +67,13 @@
         <label class="field-label">문제 내용</label>
         <textarea id="q-text" rows="2" placeholder="예: 대한민국의 수도는?"></textarea>
 
+        <label class="field-label">이미지 첨부 (선택)</label>
+        <input type="file" id="q-image-upload" accept="image/*"/>
+        <div class="image-preview-wrap hidden" id="q-image-preview-wrap">
+          <img id="q-image-preview"/>
+          <button type="button" class="secondary small-btn" id="btn-remove-image" style="width:auto;">이미지 삭제</button>
+        </div>
+
         <div id="choices-row">
           <label class="field-label">선택지 (콤마로 구분, 객관식일 때만)</label>
           <input id="q-choices" type="text" placeholder="예: 서울,부산,대구,인천"/>
@@ -78,14 +85,62 @@
         <label class="field-label">해설 (선택)</label>
         <textarea id="q-explanation" rows="2" placeholder="마감 후 정답과 함께 보여줄 해설"></textarea>
 
-        <label class="field-label">문제 공개 시각 (revealAt)</label>
-        <input id="q-reveal-at" type="datetime-local"/>
+        <label class="field-label">문제 공개 시각 (revealAt) · 기본 08:00</label>
+        <div class="date-picker" data-datetime-picker>
+          <input type="hidden" id="q-reveal-at" />
+          <button type="button" class="date-picker-trigger"></button>
+          <div class="date-picker-popup hidden">
+            <div class="dp-header">
+              <button type="button" class="dp-prev">‹</button>
+              <span class="dp-month-label"></span>
+              <button type="button" class="dp-next">›</button>
+            </div>
+            <div class="dp-weekdays"></div>
+            <div class="dp-days"></div>
+            <div class="dp-time-row">
+              <select class="dp-hour"></select><span class="dp-time-sep">:</span><select class="dp-minute"></select>
+            </div>
+            <button type="button" class="dp-confirm">확인</button>
+          </div>
+        </div>
 
-        <label class="field-label">제출 시작 시각 (openAt)</label>
-        <input id="q-open-at" type="datetime-local"/>
+        <label class="field-label">제출 시작 시각 (openAt) · 기본 08:00</label>
+        <div class="date-picker" data-datetime-picker>
+          <input type="hidden" id="q-open-at" />
+          <button type="button" class="date-picker-trigger"></button>
+          <div class="date-picker-popup hidden">
+            <div class="dp-header">
+              <button type="button" class="dp-prev">‹</button>
+              <span class="dp-month-label"></span>
+              <button type="button" class="dp-next">›</button>
+            </div>
+            <div class="dp-weekdays"></div>
+            <div class="dp-days"></div>
+            <div class="dp-time-row">
+              <select class="dp-hour"></select><span class="dp-time-sep">:</span><select class="dp-minute"></select>
+            </div>
+            <button type="button" class="dp-confirm">확인</button>
+          </div>
+        </div>
 
-        <label class="field-label">마감 시각 (closeAt)</label>
-        <input id="q-close-at" type="datetime-local"/>
+        <label class="field-label">마감 시각 (closeAt) · 기본 14:00</label>
+        <div class="date-picker" data-datetime-picker>
+          <input type="hidden" id="q-close-at" />
+          <button type="button" class="date-picker-trigger"></button>
+          <div class="date-picker-popup hidden">
+            <div class="dp-header">
+              <button type="button" class="dp-prev">‹</button>
+              <span class="dp-month-label"></span>
+              <button type="button" class="dp-next">›</button>
+            </div>
+            <div class="dp-weekdays"></div>
+            <div class="dp-days"></div>
+            <div class="dp-time-row">
+              <select class="dp-hour"></select><span class="dp-time-sep">:</span><select class="dp-minute"></select>
+            </div>
+            <button type="button" class="dp-confirm">확인</button>
+          </div>
+        </div>
 
         <label class="field-label">점수 부여 방식</label>
         <select id="q-scoring-mode">
@@ -177,13 +232,6 @@
     <!-- ============ 탭: 랭킹 ============ -->
     <div id="tab-ranking" class="tab-panel hidden">
       <div class="panel">
-        <h3>지금까지의 퀴즈 기록 전체 다운로드</h3>
-        <p class="hint-text">지금까지 등록된 모든 날짜의 퀴즈를 엑셀(xlsx) 파일로 받아요. "요약" 시트(날짜별 문제/정답/제출·정답 인원)와 "상세" 시트(학생별 제출 내역)가 함께 들어있어요.</p>
-        <button id="btn-export-xlsx">📊 전체 기록 xlsx 다운로드</button>
-        <p id="export-status" class="hint-text"></p>
-      </div>
-
-      <div class="panel">
         <h3>전체 누적 랭킹</h3>
         <div id="ranking-all-list" class="list-scroll"></div>
       </div>
@@ -221,6 +269,18 @@
         </div>
         <button id="btn-range-search">조회</button>
         <div id="ranking-range-list" class="list-scroll"></div>
+      </div>
+
+      <div class="panel">
+        <div class="toggle-row">
+          <input type="checkbox" id="show-export-panel"/>
+          <label for="show-export-panel">지금까지의 퀴즈 기록 다운로드</label>
+        </div>
+        <div id="export-panel-area" class="hidden">
+          <p class="hint-text">지금까지 등록된 모든 날짜의 퀴즈를 엑셀(xlsx) 파일로 받아요. "요약" 시트(날짜별 문제/정답/제출·정답 인원)와 "상세" 시트(학생별 제출 내역)가 함께 들어있어요.</p>
+          <button id="btn-export-xlsx">📊 전체 기록 xlsx 다운로드</button>
+          <p id="export-status" class="hint-text"></p>
+        </div>
       </div>
     </div>
 
@@ -348,6 +408,19 @@ function startAdmin() {
     });
   }
 
+  if (!window.__datetimePickers) {
+    window.__datetimePickers = {};
+    const defaultTimeMap = {
+      "q-reveal-at": DEFAULT_QUIZ_TIMES.reveal,
+      "q-open-at": DEFAULT_QUIZ_TIMES.open,
+      "q-close-at": DEFAULT_QUIZ_TIMES.close
+    };
+    document.querySelectorAll("[data-datetime-picker]").forEach(wrapper => {
+      const inputId = wrapper.querySelector("input[type=hidden]").id;
+      window.__datetimePickers[inputId] = attachDateTimePicker(wrapper, { defaultTime: defaultTimeMap[inputId] });
+    });
+  }
+
   window.__datePickers["quiz-date-picker"].setValue(todayStr);
   loadQuizForDate(todayStr);
   startMonitor(todayStr);
@@ -408,6 +481,8 @@ document.getElementById("btn-add-tier").addEventListener("click", () => {
   renderTierRows();
 });
 
+let currentQuestionImageData = null;
+
 async function loadQuizForDate(dateStr) {
   const [metaSnap, keySnap] = await Promise.all([
     db.ref(`${PATH.QUIZZES}/${dateStr}/meta`).once("value"),
@@ -422,9 +497,21 @@ async function loadQuizForDate(dateStr) {
   document.getElementById("q-choices").value = (meta.choices || []).join(",");
   document.getElementById("q-correct").value = key.correctAnswer || "";
   document.getElementById("q-explanation").value = key.explanation || "";
-  document.getElementById("q-reveal-at").value = formatDateTimeLocal(meta.revealAt);
-  document.getElementById("q-open-at").value = formatDateTimeLocal(meta.openAt);
-  document.getElementById("q-close-at").value = formatDateTimeLocal(meta.closeAt);
+
+  currentQuestionImageData = meta.questionImageData || null;
+  renderImagePreview();
+  document.getElementById("q-image-upload").value = "";
+
+  // 새로 등록하는 날짜면 기본 시각(공개/제출 08:00, 마감 14:00)으로 미리 채워줌
+  window.__datetimePickers["q-reveal-at"].setValue(
+    meta.revealAt ? formatDateTimeLocal(meta.revealAt) : `${dateStr}T${DEFAULT_QUIZ_TIMES.reveal}`
+  );
+  window.__datetimePickers["q-open-at"].setValue(
+    meta.openAt ? formatDateTimeLocal(meta.openAt) : `${dateStr}T${DEFAULT_QUIZ_TIMES.open}`
+  );
+  window.__datetimePickers["q-close-at"].setValue(
+    meta.closeAt ? formatDateTimeLocal(meta.closeAt) : `${dateStr}T${DEFAULT_QUIZ_TIMES.close}`
+  );
 
   document.getElementById("q-scoring-mode").value = meta.scoringMode || SCORING_MODE.SIMPLE;
   const isTier = meta.scoringMode === SCORING_MODE.TIER;
@@ -442,6 +529,29 @@ async function loadQuizForDate(dateStr) {
 
   document.getElementById("quiz-save-status").innerText = "";
 }
+
+function renderImagePreview() {
+  const wrap = document.getElementById("q-image-preview-wrap");
+  if (currentQuestionImageData) {
+    document.getElementById("q-image-preview").src = currentQuestionImageData;
+    wrap.classList.remove("hidden");
+  } else {
+    wrap.classList.add("hidden");
+  }
+}
+
+document.getElementById("q-image-upload").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  currentQuestionImageData = await compressImageToDataUrl(file);
+  renderImagePreview();
+});
+
+document.getElementById("btn-remove-image").addEventListener("click", () => {
+  currentQuestionImageData = null;
+  document.getElementById("q-image-upload").value = "";
+  renderImagePreview();
+});
 
 document.getElementById("btn-save-quiz").addEventListener("click", async () => {
   const status = document.getElementById("quiz-save-status");
@@ -478,7 +588,9 @@ document.getElementById("btn-save-quiz").addEventListener("click", async () => {
   const existing = existingSnap.val();
 
   const meta = {
-    questionText, type, choices,
+    questionText,
+    questionImageData: currentQuestionImageData,
+    type, choices,
     revealAt, openAt, closeAt,
     scoringMode,
     simpleConfig,
@@ -729,6 +841,10 @@ document.getElementById("btn-save-badges").addEventListener("click", async () =>
 /* =========================================================
    탭: 랭킹 — 전체 기록 xlsx 내보내기
 ========================================================= */
+document.getElementById("show-export-panel").addEventListener("change", (e) => {
+  document.getElementById("export-panel-area").classList.toggle("hidden", !e.target.checked);
+});
+
 document.getElementById("btn-export-xlsx").addEventListener("click", async () => {
   const status = document.getElementById("export-status");
   status.innerText = "만드는 중...";

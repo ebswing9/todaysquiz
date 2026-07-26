@@ -11,15 +11,14 @@
    - Firebase 콘솔 > 프로젝트 설정 > 일반 > 내 앱 > SDK 설정 및 구성 에서 확인 가능합니다.
 --------------------------------------------------------- */
 const firebaseConfig = {
-  apiKey: "AIzaSyAKlIm_ZDD4ICyROlSskTKP5fpSixkSeIU",
-  authDomain: "todaysquiz-5167d.firebaseapp.com",
-  databaseURL: "https://todaysquiz-5167d-default-rtdb.firebaseio.com",
-  projectId: "todaysquiz-5167d",
-  storageBucket: "todaysquiz-5167d.firebasestorage.app",
-  messagingSenderId: "582156880416",
-  appId: "1:582156880416:web:3f750531895cdc5f9a4a45"
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  databaseURL: "https://YOUR_PROJECT-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "YOUR_PROJECT",
+  storageBucket: "YOUR_PROJECT.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
 };
-
 
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
@@ -183,6 +182,7 @@ function getInitialConfig() {
 function getInitialQuizMeta() {
   return {
     questionText: "",
+    questionImageData: null,
     type: QUESTION_TYPE.SHORT,
     choices: [],
     revealAt: null,
@@ -340,6 +340,184 @@ function attachDatePicker(wrapper, options) {
       return input.value;
     }
   };
+}
+
+/* ---------------------------------------------------------
+   10-b) 기본 시각 (새 날짜에 처음 문제를 등록할 때 미리 채워줄 값)
+--------------------------------------------------------- */
+const DEFAULT_QUIZ_TIMES = {
+  reveal: "08:00",
+  open: "08:00",
+  close: "14:00"
+};
+
+/* ---------------------------------------------------------
+   10-c) 날짜 + 시간 선택기 (예약 시각 입력용, 달력과 같은 디자인)
+   HTML 구조는 date-picker와 동일하되, dp-time-row / dp-confirm 버튼이 추가로 필요함:
+     <div class="date-picker" data-datetime-picker>
+       <input type="hidden" />                 (값 형식: "YYYY-MM-DDTHH:mm")
+       <button type="button" class="date-picker-trigger"></button>
+       <div class="date-picker-popup hidden">
+         <div class="dp-header">...</div>
+         <div class="dp-weekdays"></div>
+         <div class="dp-days"></div>
+         <div class="dp-time-row">
+           <select class="dp-hour"></select><span class="dp-time-sep">:</span><select class="dp-minute"></select>
+         </div>
+         <button type="button" class="dp-confirm">확인</button>
+       </div>
+     </div>
+--------------------------------------------------------- */
+function formatPrettyDateTimeKr(value) {
+  if (!value) return "시각 선택";
+  const [datePart, timePart] = value.split("T");
+  const [y, m, d] = datePart.split("-").map(Number);
+  return `${m}월 ${d}일 ${timePart}`;
+}
+
+function attachDateTimePicker(wrapper, options) {
+  options = options || {};
+  const defaultTime = options.defaultTime || "08:00";
+
+  const input = wrapper.querySelector("input[type=hidden]");
+  const trigger = wrapper.querySelector(".date-picker-trigger");
+  const popup = wrapper.querySelector(".date-picker-popup");
+  const monthLabel = wrapper.querySelector(".dp-month-label");
+  const weekdaysWrap = wrapper.querySelector(".dp-weekdays");
+  const daysWrap = wrapper.querySelector(".dp-days");
+  const prevBtn = wrapper.querySelector(".dp-prev");
+  const nextBtn = wrapper.querySelector(".dp-next");
+  const hourSelect = wrapper.querySelector(".dp-hour");
+  const minuteSelect = wrapper.querySelector(".dp-minute");
+  const confirmBtn = wrapper.querySelector(".dp-confirm");
+
+  ["일", "월", "화", "수", "목", "금", "토"].forEach(w => {
+    const span = document.createElement("span");
+    span.innerText = w;
+    weekdaysWrap.appendChild(span);
+  });
+  for (let h = 0; h < 24; h++) {
+    const opt = document.createElement("option");
+    opt.value = String(h).padStart(2, "0");
+    opt.innerText = `${String(h).padStart(2, "0")}시`;
+    hourSelect.appendChild(opt);
+  }
+  for (let mm = 0; mm < 60; mm += 5) {
+    const opt = document.createElement("option");
+    opt.value = String(mm).padStart(2, "0");
+    opt.innerText = `${String(mm).padStart(2, "0")}분`;
+    minuteSelect.appendChild(opt);
+  }
+
+  function splitValue(value) {
+    if (!value) return { date: todayKstStr(), time: defaultTime };
+    const [date, time] = value.split("T");
+    return { date, time: time || defaultTime };
+  }
+
+  let pending = splitValue(input.value);
+  let viewDate = new Date(pending.date + "T00:00:00");
+
+  function renderCalendar() {
+    const y = viewDate.getFullYear();
+    const m = viewDate.getMonth();
+    monthLabel.innerText = `${y}년 ${m + 1}월`;
+
+    const firstDay = new Date(y, m, 1).getDay();
+    const daysInMonth = new Date(y, m + 1, 0).getDate();
+    daysWrap.innerHTML = "";
+
+    for (let i = 0; i < firstDay; i++) {
+      const blank = document.createElement("span");
+      blank.className = "dp-day dp-day-blank";
+      daysWrap.appendChild(blank);
+    }
+    for (let d = 1; d <= daysInMonth; d++) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "dp-day";
+      btn.innerText = d;
+      const dateStr = `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      if (dateStr === pending.date) btn.classList.add("selected");
+      if (dateStr === todayKstStr()) btn.classList.add("today");
+      btn.addEventListener("click", () => {
+        pending.date = dateStr;
+        renderCalendar();
+      });
+      daysWrap.appendChild(btn);
+    }
+
+    hourSelect.value = pending.time.split(":")[0];
+    minuteSelect.value = pending.time.split(":")[1];
+  }
+
+  hourSelect.addEventListener("click", e => e.stopPropagation());
+  minuteSelect.addEventListener("click", e => e.stopPropagation());
+  hourSelect.addEventListener("change", () => { pending.time = `${hourSelect.value}:${minuteSelect.value}`; });
+  minuteSelect.addEventListener("change", () => { pending.time = `${hourSelect.value}:${minuteSelect.value}`; });
+
+  confirmBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const value = `${pending.date}T${pending.time}`;
+    input.value = value;
+    trigger.innerText = formatPrettyDateTimeKr(value);
+    popup.classList.add("hidden");
+    input.dispatchEvent(new Event("change"));
+    if (options.onChange) options.onChange(value);
+  });
+
+  trigger.addEventListener("click", (e) => {
+    e.stopPropagation();
+    document.querySelectorAll(".date-picker-popup").forEach(p => { if (p !== popup) p.classList.add("hidden"); });
+    pending = splitValue(input.value);
+    viewDate = new Date(pending.date + "T00:00:00");
+    popup.classList.toggle("hidden");
+    renderCalendar();
+  });
+  prevBtn.addEventListener("click", (e) => { e.stopPropagation(); viewDate.setMonth(viewDate.getMonth() - 1); renderCalendar(); });
+  nextBtn.addEventListener("click", (e) => { e.stopPropagation(); viewDate.setMonth(viewDate.getMonth() + 1); renderCalendar(); });
+  popup.addEventListener("click", (e) => e.stopPropagation());
+  document.addEventListener("click", () => popup.classList.add("hidden"));
+
+  trigger.innerText = formatPrettyDateTimeKr(input.value);
+
+  return {
+    setValue(value) {
+      input.value = value || "";
+      trigger.innerText = formatPrettyDateTimeKr(value);
+      pending = splitValue(value);
+      viewDate = new Date(pending.date + "T00:00:00");
+    },
+    getValue() {
+      return input.value;
+    }
+  };
+}
+
+/* ---------------------------------------------------------
+   10-d) 이미지 압축 (문제에 첨부하는 이미지를 base64로 변환하기 전, 용량을 줄임)
+   Realtime Database에 통째로 저장하므로 용량이 크면 안돼서, 가로 최대 800px / JPEG 품질 0.7로 축소
+--------------------------------------------------------- */
+function compressImageToDataUrl(file, maxWidth = 800, quality = 0.7) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, maxWidth / img.width);
+        const canvas = document.createElement("canvas");
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }
 
 /* ---------------------------------------------------------
