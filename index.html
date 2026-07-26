@@ -85,6 +85,14 @@
           </div>
           <button class="secondary" id="btn-edit-answer">✏️ 다른 답으로 다시 제출</button>
         </div>
+
+        <!-- 모드 2에서 이미 정답을 맞혀 완료된 경우 -->
+        <div id="open-solved-area" class="hidden">
+          <div class="answer-summary-card">
+            <div class="as-label">🎉 정답을 맞혔어요!</div>
+            <div class="as-answer" id="solved-answer-text"></div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -331,6 +339,18 @@ function renderOpenState() {
   const attemptCount = myAnswerEntry?.attemptCount || 0;
   const retryLimit = currentMeta.retryLimit;
   const limitReached = retryLimit != null && attemptCount >= retryLimit;
+  const isAlreadyCorrect = myAnswerEntry?.correctRank != null;
+
+  // 모드 2(정답이어야만 통과)에서 이미 정답을 맞힌 경우: 더 이상 수정 못 하게 잠금
+  if (currentMeta.requireCorrectMode && isAlreadyCorrect) {
+    document.getElementById("open-edit-area").classList.add("hidden");
+    document.getElementById("open-submitted-area").classList.add("hidden");
+    document.getElementById("open-solved-area").classList.remove("hidden");
+    document.getElementById("solved-answer-text").innerText = myAnswerEntry.currentAnswer;
+    return;
+  }
+  document.getElementById("open-solved-area").classList.add("hidden");
+
   const hasSubmitted = !!(myAnswerEntry && myAnswerEntry.currentAnswer);
   const showEditForm = !hasSubmitted || forceEditMode;
 
@@ -441,6 +461,12 @@ document.getElementById("btn-submit-answer").addEventListener("click", async () 
   // 새로고침하거나 나중에 다시 접속하면 그때 "제출 완료" 요약 화면이 보임.
   forceEditMode = true;
   const limitReachedNow = retryLimit != null && newAttemptCount >= retryLimit;
+
+  if (currentMeta.requireCorrectMode) {
+    document.getElementById("submit-modal-title").innerText = isCorrectNow ? "🎉 정답입니다!" : "❌ 오답입니다";
+  } else {
+    document.getElementById("submit-modal-title").innerText = "✅ 제출 완료!";
+  }
   document.getElementById("submit-modal-answer").innerText = answer;
   document.getElementById("submit-modal-retry").innerText = retryLimit != null
     ? (limitReachedNow ? "더 이상 제출할 수 없습니다." : `남은 제출 횟수: ${retryLimit - newAttemptCount}회`)
