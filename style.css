@@ -1,27 +1,31 @@
 /* =========================================================
-   style.css — "오늘의 퀴즈" 공통 디자인
-   팔레트: 딥 인디고/보라 배경 + 골드(점수) + 코랄(스트릭) + 민트(정답) 포인트
+   style.css — "오늘의 퀴즈" 공통 디자인 (밝은 테마)
+   팔레트: 밝은 라벤더/화이트 배경 + 골드(점수) + 코랄(스트릭) + 민트(정답) + 바이올렛(제목) 포인트
    폰트: Jua(제목/버튼, 게임스러운 둥근 느낌) + Pretendard(본문, 가독성)
 ========================================================= */
 
 @import url("https://fonts.googleapis.com/css2?family=Jua&display=swap");
 
 :root {
-  --bg-deep: #170F2E;
-  --bg-card: #241A44;
-  --bg-card-alt: #2E2159;
-  --bg-input: #1D1338;
-  --border-soft: #40316E;
+  --bg-page-1: #F3EEFF;
+  --bg-page-2: #EAF6FF;
+  --bg-card: #FFFFFF;
+  --bg-card-alt: #F7F4FF;
+  --bg-input: #FFFFFF;
+  --border-soft: #E1D9F7;
+  --border-strong: #CBB9F5;
 
-  --accent-gold: #FFC145;
+  --accent-violet: #7C4DFF;
+  --accent-violet-dark: #5B32D6;
+  --accent-gold: #FFB800;
   --accent-gold-dark: #C98A1E;
   --accent-coral: #FF6B5B;
-  --accent-mint: #3DDC97;
+  --accent-mint: #17B892;
   --accent-red: #FF5C7A;
 
-  --text-main: #F4EFFF;
-  --text-muted: #B6A8DE;
-  --text-faint: #7C6BA6;
+  --text-main: #241B3D;
+  --text-muted: #6B6089;
+  --text-faint: #A79BC9;
 }
 
 * {
@@ -36,9 +40,10 @@ h1, h2, h3, .display-font, button {
 body {
   margin: 0;
   background:
-    radial-gradient(circle at 15% 10%, rgba(255,193,69,0.10), transparent 40%),
-    radial-gradient(circle at 85% 90%, rgba(255,107,91,0.10), transparent 40%),
-    var(--bg-deep);
+    radial-gradient(circle at 12% 8%, rgba(255,184,0,0.14), transparent 40%),
+    radial-gradient(circle at 88% 12%, rgba(124,77,255,0.12), transparent 40%),
+    radial-gradient(circle at 50% 100%, rgba(23,184,146,0.10), transparent 45%),
+    linear-gradient(160deg, var(--bg-page-1), var(--bg-page-2));
   color: var(--text-main);
   min-height: 100vh;
 }
@@ -64,9 +69,10 @@ body {
   justify-content: space-between;
   gap: 10px;
   padding: 10px 16px;
-  background: rgba(23, 15, 46, 0.92);
+  background: rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(6px);
   border-bottom: 1px solid var(--border-soft);
+  box-shadow: 0 2px 10px rgba(124,77,255,0.06);
   z-index: 50;
 }
 
@@ -81,19 +87,19 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
-  background: var(--bg-card);
+  background: var(--bg-card-alt);
   border: 1px solid var(--border-soft);
   border-radius: 999px;
   padding: 6px 12px;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   white-space: nowrap;
 }
 
-.hud-nickname { color: var(--text-main); }
+.hud-nickname { color: var(--accent-violet-dark); }
 
 .hud-score {
-  color: var(--accent-gold);
+  color: var(--accent-gold-dark);
 }
 .hud-score::before { content: "🪙 "; }
 
@@ -104,12 +110,12 @@ body {
   padding: 8px 12px;
   margin: 0;
   border-radius: 999px;
-  background: linear-gradient(135deg, var(--accent-gold), var(--accent-gold-dark));
-  color: #2A1B03;
+  background: linear-gradient(135deg, var(--accent-gold), #FFD166);
+  color: #4A2F00;
   font-size: 16px;
-  box-shadow: 0 2px 8px rgba(255,193,69,0.35);
+  box-shadow: 0 2px 8px rgba(255,184,0,0.35);
 }
-.hud-crown-btn:hover { filter: brightness(1.08); }
+.hud-crown-btn:hover { filter: brightness(1.05); }
 
 .hud-logout {
   width: auto;
@@ -128,11 +134,11 @@ body {
   background: var(--bg-card);
   border: 1px solid var(--border-soft);
   padding: 26px;
-  border-radius: 18px;
+  border-radius: 20px;
   width: 380px;
   max-width: 100%;
   text-align: center;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+  box-shadow: 0 14px 34px rgba(124,77,255,0.14);
 }
 
 .card.wide { width: 680px; }
@@ -141,6 +147,7 @@ body {
   margin-top: 0;
   font-size: 1.5rem;
   letter-spacing: 0.5px;
+  color: var(--accent-violet-dark);
 }
 
 /* =========================
@@ -159,8 +166,8 @@ input, select, textarea {
 input::placeholder, textarea::placeholder { color: var(--text-faint); }
 input:focus, select:focus, textarea:focus {
   outline: none;
-  border-color: var(--accent-gold);
-  box-shadow: 0 0 0 3px rgba(255,193,69,0.18);
+  border-color: var(--accent-violet);
+  box-shadow: 0 0 0 3px rgba(124,77,255,0.15);
 }
 textarea { resize: vertical; }
 
@@ -170,17 +177,17 @@ button {
   margin-top: 10px;
   border: none;
   border-radius: 10px;
-  background: var(--accent-gold);
-  color: #2A1B03;
+  background: var(--accent-violet);
+  color: #FFFFFF;
   cursor: pointer;
   font-weight: 700;
   font-size: 15px;
   transition: transform 0.1s, filter 0.15s;
 }
-button:hover { filter: brightness(1.06); transform: translateY(-1px); }
+button:hover { filter: brightness(1.08); transform: translateY(-1px); }
 button:active { transform: translateY(0); }
 button:disabled {
-  background: var(--bg-card-alt);
+  background: var(--border-soft);
   color: var(--text-faint);
   cursor: not-allowed;
   transform: none;
@@ -189,18 +196,18 @@ button:disabled {
 button.secondary {
   background: var(--bg-card-alt);
   color: var(--text-main);
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--border-strong);
 }
-button.secondary:hover { background: #382a63; }
+button.secondary:hover { background: #EFE7FF; }
 
 button.danger {
   background: var(--accent-red);
-  color: #3A0410;
+  color: #FFFFFF;
 }
 
 button.mint {
   background: var(--accent-mint);
-  color: #04331F;
+  color: #FFFFFF;
 }
 
 .error-text { color: var(--accent-red); font-size: 13px; }
@@ -223,7 +230,7 @@ button.mint {
 .quest-card {
   text-align: left;
   background: var(--bg-card-alt);
-  border: 2px solid var(--accent-gold-dark);
+  border: 2px solid var(--accent-gold);
   border-radius: 16px;
   padding: 20px;
   margin: 14px 0;
@@ -235,7 +242,7 @@ button.mint {
   top: -12px;
   left: 16px;
   background: var(--accent-gold);
-  color: #2A1B03;
+  color: #4A2F00;
   font-family: 'Jua', sans-serif;
   font-size: 12px;
   padding: 3px 10px;
@@ -257,7 +264,7 @@ button.mint {
 }
 
 .choice-card {
-  background: var(--bg-input);
+  background: #FFFFFF;
   border: 2px solid var(--border-soft);
   border-radius: 12px;
   padding: 12px 16px;
@@ -265,17 +272,17 @@ button.mint {
   font-size: 0.95rem;
   transition: transform 0.12s, border-color 0.12s;
 }
-.choice-card:hover { transform: scale(1.01); border-color: var(--accent-gold); }
+.choice-card:hover { transform: scale(1.01); border-color: var(--accent-violet); }
 .choice-card.selected {
-  background: rgba(255,193,69,0.15);
-  border-color: var(--accent-gold);
+  background: rgba(124,77,255,0.10);
+  border-color: var(--accent-violet);
   font-weight: 700;
 }
 
 .countdown-text {
   font-family: 'Jua', sans-serif;
   font-size: 1.1rem;
-  color: var(--accent-gold);
+  color: var(--accent-violet-dark);
   text-align: center;
   margin: 14px 0;
 }
@@ -290,7 +297,7 @@ button.mint {
 .answer-key-box {
   margin-top: 14px;
   padding: 12px 14px;
-  background: rgba(61,220,151,0.10);
+  background: rgba(23,184,146,0.08);
   border: 1px solid var(--accent-mint);
   border-radius: 10px;
   font-size: 12px;
@@ -304,11 +311,11 @@ button.mint {
   margin-top: 10px;
   padding: 14px;
   border-radius: 12px;
-  background: var(--bg-card);
+  background: var(--bg-card-alt);
   border: 1px solid var(--border-soft);
   text-align: center;
 }
-.result-summary .rs-points { font-family: 'Jua', sans-serif; font-size: 1.4rem; color: var(--accent-gold); }
+.result-summary .rs-points { font-family: 'Jua', sans-serif; font-size: 1.4rem; color: var(--accent-gold-dark); }
 
 /* =========================
    스트릭 뱃지 / TOP5 모달
@@ -317,7 +324,7 @@ button.mint {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  background: rgba(255,107,91,0.15);
+  background: rgba(255,107,91,0.12);
   border: 1px solid var(--accent-coral);
   border-radius: 999px;
   padding: 4px 10px;
@@ -329,7 +336,7 @@ button.mint {
 .modal {
   position: fixed;
   top: 0; left: 0; width: 100%; height: 100%;
-  background: rgba(9, 5, 22, 0.72);
+  background: rgba(36, 27, 61, 0.45);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -340,14 +347,15 @@ button.mint {
   background: var(--bg-card);
   border: 1px solid var(--border-soft);
   padding: 22px;
-  border-radius: 16px;
+  border-radius: 18px;
   width: 380px;
   max-width: 100%;
   max-height: 85vh;
   overflow-y: auto;
+  box-shadow: 0 20px 50px rgba(36,27,61,0.25);
 }
 .modal-box.wide { width: 640px; }
-.modal-box h3 { margin-top: 0; font-size: 1.2rem; }
+.modal-box h3 { margin-top: 0; font-size: 1.2rem; color: var(--accent-violet-dark); }
 
 .rank-list { list-style: none; padding: 0; margin: 10px 0; }
 .rank-row {
@@ -360,7 +368,7 @@ button.mint {
 .rank-row:last-child { border-bottom: none; }
 .rank-medal { font-size: 1.1rem; width: 28px; text-align: center; }
 .rank-name { flex: 1; font-weight: 600; }
-.rank-score { color: var(--accent-gold); font-weight: 700; }
+.rank-score { color: var(--accent-gold-dark); font-weight: 700; }
 
 /* =========================
    관리자 패널
@@ -369,11 +377,11 @@ button.mint {
   margin-top: 18px;
   padding: 16px;
   background: var(--bg-card-alt);
-  border-radius: 12px;
+  border-radius: 14px;
   text-align: left;
   border: 1px solid var(--border-soft);
 }
-.panel h3 { margin-top: 0; font-size: 1.05rem; color: var(--accent-gold); }
+.panel h3 { margin-top: 0; font-size: 1.05rem; color: var(--accent-violet-dark); }
 
 .toggle-row {
   display: flex;
@@ -416,8 +424,8 @@ button.mint {
   font-weight: 700;
   font-size: 11px;
 }
-.status-online { background: rgba(61,220,151,0.18); color: var(--accent-mint); }
-.status-offline { background: rgba(182,168,222,0.15); color: var(--text-muted); }
+.status-online { background: rgba(23,184,146,0.14); color: var(--accent-mint); }
+.status-offline { background: rgba(107,96,137,0.10); color: var(--text-muted); }
 
 .list-scroll {
   max-height: 240px;
@@ -427,6 +435,7 @@ button.mint {
 
 .danger-zone {
   border: 1px dashed var(--accent-red);
+  background: #FFF3F5;
 }
 .danger-zone h3 { color: var(--accent-red); }
 
@@ -448,15 +457,106 @@ button.mint {
   margin: 0;
   padding: 8px 14px;
   border-radius: 999px;
-  background: var(--bg-card);
+  background: var(--bg-card-alt);
   color: var(--text-muted);
   border: 1px solid var(--border-soft);
   font-size: 13px;
 }
 .pill-tab.active {
-  background: var(--accent-gold);
-  color: #2A1B03;
+  background: var(--accent-violet);
+  color: #FFFFFF;
 }
+
+/* =========================
+   커스텀 예쁜 달력(날짜 선택기)
+========================= */
+.date-picker {
+  position: relative;
+  margin: 8px 0;
+}
+.date-picker-trigger {
+  width: auto;
+  min-width: 190px;
+  margin: 0;
+  background: #FFFFFF;
+  color: var(--text-main);
+  border: 1.5px solid var(--border-soft);
+  font-weight: 600;
+  font-size: 14px;
+  text-align: left;
+  padding: 11px 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.date-picker-trigger::before { content: "📅"; }
+.date-picker-trigger:hover { border-color: var(--accent-violet); filter: none; transform: none; }
+
+.date-picker-popup {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 60;
+  background: #FFFFFF;
+  border: 1px solid var(--border-soft);
+  border-radius: 16px;
+  box-shadow: 0 16px 36px rgba(124,77,255,0.20);
+  padding: 14px;
+  width: 260px;
+}
+
+.dp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.dp-header button {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  margin: 0;
+  border-radius: 999px;
+  background: var(--bg-card-alt);
+  color: var(--accent-violet-dark);
+  font-size: 15px;
+  line-height: 1;
+}
+.dp-month-label {
+  font-family: 'Jua', sans-serif;
+  color: var(--accent-violet-dark);
+  font-size: 14px;
+}
+
+.dp-weekdays, .dp-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  text-align: center;
+}
+.dp-weekdays span {
+  font-size: 11px;
+  color: var(--text-faint);
+  font-weight: 700;
+  padding: 4px 0;
+}
+
+.dp-day {
+  width: auto;
+  margin: 0;
+  padding: 0;
+  height: 30px;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-main);
+  font-size: 13px;
+  font-weight: 500;
+  border: none;
+}
+.dp-day:hover { background: var(--bg-card-alt); transform: none; filter: none; }
+.dp-day.selected { background: var(--accent-violet); color: #FFFFFF; font-weight: 700; }
+.dp-day.today:not(.selected) { border: 1.5px solid var(--accent-gold); }
+.dp-day-blank { visibility: hidden; }
 
 @media (max-width: 720px) {
   .card.wide, .modal-box.wide { width: 100%; }

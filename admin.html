@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="style.css" />
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
 
@@ -25,7 +26,10 @@
 <!-- 2. 관리자 패널 -->
 <div id="admin-view" class="view hidden">
   <div class="card wide">
-    <h2>🛠 오늘의 퀴즈 · 관리자 패널</h2>
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;">
+      <h2 style="margin:0;">🛠 오늘의 퀴즈 · 관리자 패널</h2>
+      <button id="btn-admin-logout" class="secondary small-btn" style="width:auto;">로그아웃</button>
+    </div>
 
     <div class="pill-tabs">
       <button class="pill-tab active" data-tab="tab-quiz">퀴즈 등록</button>
@@ -40,7 +44,19 @@
     <div id="tab-quiz" class="tab-panel">
       <div class="panel">
         <h3>날짜 선택 (달력에서 원하는 날짜의 퀴즈를 미리 등록/수정할 수 있어요)</h3>
-        <input type="date" id="quiz-date-picker" />
+        <div class="date-picker" id="quiz-date-picker-wrap" data-date-picker>
+          <input type="hidden" id="quiz-date-picker" />
+          <button type="button" class="date-picker-trigger"></button>
+          <div class="date-picker-popup hidden">
+            <div class="dp-header">
+              <button type="button" class="dp-prev">‹</button>
+              <span class="dp-month-label"></span>
+              <button type="button" class="dp-next">›</button>
+            </div>
+            <div class="dp-weekdays"></div>
+            <div class="dp-days"></div>
+          </div>
+        </div>
 
         <label class="field-label">문제 유형</label>
         <select id="q-type">
@@ -161,16 +177,47 @@
     <!-- ============ 탭: 랭킹 ============ -->
     <div id="tab-ranking" class="tab-panel hidden">
       <div class="panel">
+        <h3>지금까지의 퀴즈 기록 전체 다운로드</h3>
+        <p class="hint-text">지금까지 등록된 모든 날짜의 퀴즈를 엑셀(xlsx) 파일로 받아요. "요약" 시트(날짜별 문제/정답/제출·정답 인원)와 "상세" 시트(학생별 제출 내역)가 함께 들어있어요.</p>
+        <button id="btn-export-xlsx">📊 전체 기록 xlsx 다운로드</button>
+        <p id="export-status" class="hint-text"></p>
+      </div>
+
+      <div class="panel">
         <h3>전체 누적 랭킹</h3>
         <div id="ranking-all-list" class="list-scroll"></div>
       </div>
 
       <div class="panel">
         <h3>기간 지정 랭킹</h3>
-        <div style="display:flex; gap:8px; align-items:center;">
-          <input type="date" id="range-start"/>
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+          <div class="date-picker" data-date-picker>
+            <input type="hidden" id="range-start" />
+            <button type="button" class="date-picker-trigger"></button>
+            <div class="date-picker-popup hidden">
+              <div class="dp-header">
+                <button type="button" class="dp-prev">‹</button>
+                <span class="dp-month-label"></span>
+                <button type="button" class="dp-next">›</button>
+              </div>
+              <div class="dp-weekdays"></div>
+              <div class="dp-days"></div>
+            </div>
+          </div>
           <span>~</span>
-          <input type="date" id="range-end"/>
+          <div class="date-picker" data-date-picker>
+            <input type="hidden" id="range-end" />
+            <button type="button" class="date-picker-trigger"></button>
+            <div class="date-picker-popup hidden">
+              <div class="dp-header">
+                <button type="button" class="dp-prev">‹</button>
+                <span class="dp-month-label"></span>
+                <button type="button" class="dp-next">›</button>
+              </div>
+              <div class="dp-weekdays"></div>
+              <div class="dp-days"></div>
+            </div>
+          </div>
         </div>
         <button id="btn-range-search">조회</button>
         <div id="ranking-range-list" class="list-scroll"></div>
@@ -241,8 +288,22 @@ document.getElementById("btn-admin-login").addEventListener("click", async () =>
     return;
   }
 
+  localStorage.setItem("adminLoggedIn", "true");
   showView("admin-view");
   startAdmin();
+});
+
+document.getElementById("btn-admin-logout").addEventListener("click", () => {
+  localStorage.removeItem("adminLoggedIn");
+  location.reload();
+});
+
+// 새로고침해도 로그인 상태 유지 (브라우저에 로그인 여부만 저장, 비밀번호 자체는 저장하지 않음)
+window.addEventListener("load", () => {
+  if (localStorage.getItem("adminLoggedIn") === "true") {
+    showView("admin-view");
+    startAdmin();
+  }
 });
 
 function showView(id) {
@@ -274,16 +335,25 @@ function startAdmin() {
   });
 
   const todayStr = todayKstStr();
-  document.getElementById("quiz-date-picker").value = todayStr;
-  loadQuizForDate(todayStr);
-  document.getElementById("quiz-date-picker").addEventListener("change", (e) => {
-    loadQuizForDate(e.target.value);
-  });
 
+  if (!window.__datePickers) {
+    window.__datePickers = {};
+    document.querySelectorAll("[data-date-picker]").forEach(wrapper => {
+      const inputId = wrapper.querySelector("input[type=hidden]").id;
+      window.__datePickers[inputId] = attachDatePicker(wrapper);
+    });
+
+    document.getElementById("quiz-date-picker").addEventListener("change", (e) => {
+      loadQuizForDate(e.target.value);
+    });
+  }
+
+  window.__datePickers["quiz-date-picker"].setValue(todayStr);
+  loadQuizForDate(todayStr);
   startMonitor(todayStr);
 
-  document.getElementById("range-start").value = todayStr;
-  document.getElementById("range-end").value = todayStr;
+  window.__datePickers["range-start"].setValue(todayStr);
+  window.__datePickers["range-end"].setValue(todayStr);
 }
 
 /* =========================================================
@@ -654,6 +724,74 @@ document.getElementById("btn-add-badge").addEventListener("click", () => {
 document.getElementById("btn-save-badges").addEventListener("click", async () => {
   await db.ref(PATH.STREAK_BADGES).set(cachedBadges || getDefaultStreakBadges());
   document.getElementById("badge-save-status").innerText = "✅ 저장되었습니다.";
+});
+
+/* =========================================================
+   탭: 랭킹 — 전체 기록 xlsx 내보내기
+========================================================= */
+document.getElementById("btn-export-xlsx").addEventListener("click", async () => {
+  const status = document.getElementById("export-status");
+  status.innerText = "만드는 중...";
+
+  const [quizzesSnap, studentsSnap] = await Promise.all([
+    db.ref(PATH.QUIZZES).once("value"),
+    db.ref(PATH.STUDENTS).once("value")
+  ]);
+  const quizzes = quizzesSnap.val() || {};
+  const students = studentsSnap.val() || {};
+  const dates = Object.keys(quizzes).sort();
+
+  if (dates.length === 0) {
+    status.innerText = "아직 등록된 퀴즈 기록이 없습니다.";
+    return;
+  }
+
+  const summaryRows = [];
+  const detailRows = [];
+
+  dates.forEach(date => {
+    const quiz = quizzes[date];
+    const meta = quiz.meta || {};
+    const key = quiz.answerKey || {};
+    const answers = quiz.answers || {};
+    const answerIds = Object.keys(answers);
+    const submitCount = answerIds.length;
+    const correctCount = answerIds.filter(id => answers[id].correctRank != null).length;
+    const state = computeQuizState(meta, serverNow());
+
+    summaryRows.push({
+      "날짜": date,
+      "문제": meta.questionText || "",
+      "정답": key.correctAnswer || "",
+      "해설": key.explanation || "",
+      "제출 인원": submitCount,
+      "정답 인원": correctCount,
+      "상태": state === "CLOSED" ? "마감" : "진행중"
+    });
+
+    answerIds
+      .sort((a, b) => Number(a) - Number(b))
+      .forEach(id => {
+        const a = answers[id];
+        detailRows.push({
+          "날짜": date,
+          "번호": id,
+          "닉네임": students[id]?.nickname || "",
+          "제출한 답": a.currentAnswer || "",
+          "정답 여부": a.correctRank != null ? "정답" : "오답",
+          "등수(정답자 중)": a.correctRank != null ? a.correctRank : "",
+          "획득 점수": a.pointsAwarded != null ? a.pointsAwarded : "",
+          "제출 횟수": a.attemptCount || 0
+        });
+      });
+  });
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryRows), "요약");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(detailRows), "상세");
+  XLSX.writeFile(wb, `오늘의퀴즈_기록_${todayKstStr()}.xlsx`);
+
+  status.innerText = `✅ 다운로드 완료 (총 ${dates.length}일치)`;
 });
 
 /* =========================================================

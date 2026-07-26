@@ -20,6 +20,7 @@ const firebaseConfig = {
   appId: "1:582156880416:web:3f750531895cdc5f9a4a45"
 };
 
+
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
@@ -238,7 +239,111 @@ function sleep(ms) {
 }
 
 /* ---------------------------------------------------------
-   10) 마감 채점 (트랜잭션 기반, 여러 클라이언트가 동시에 시도해도 딱 한 번만 실행됨)
+   10) 커스텀 달력(날짜 선택기)
+   사용법 (HTML):
+     <div class="date-picker" data-date-picker>
+       <input type="hidden" />
+       <button type="button" class="date-picker-trigger"></button>
+       <div class="date-picker-popup hidden">
+         <div class="dp-header">
+           <button type="button" class="dp-prev">‹</button>
+           <span class="dp-month-label"></span>
+           <button type="button" class="dp-next">›</button>
+         </div>
+         <div class="dp-weekdays"></div>
+         <div class="dp-days"></div>
+       </div>
+     </div>
+   사용법 (JS): const picker = attachDatePicker(wrapperEl, { onChange: (dateStr) => {...} });
+     picker.setValue("2026-07-26")  // 값 세팅
+     wrapperEl.querySelector("input[type=hidden]") 의 value / change 이벤트로도 접근 가능
+--------------------------------------------------------- */
+function formatPrettyDateKr(dateStr) {
+  if (!dateStr) return "날짜 선택";
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return `${y}년 ${m}월 ${d}일`;
+}
+
+function attachDatePicker(wrapper, options) {
+  options = options || {};
+  const input = wrapper.querySelector("input[type=hidden]");
+  const trigger = wrapper.querySelector(".date-picker-trigger");
+  const popup = wrapper.querySelector(".date-picker-popup");
+  const monthLabel = wrapper.querySelector(".dp-month-label");
+  const weekdaysWrap = wrapper.querySelector(".dp-weekdays");
+  const daysWrap = wrapper.querySelector(".dp-days");
+  const prevBtn = wrapper.querySelector(".dp-prev");
+  const nextBtn = wrapper.querySelector(".dp-next");
+
+  ["일", "월", "화", "수", "목", "금", "토"].forEach(w => {
+    const span = document.createElement("span");
+    span.innerText = w;
+    weekdaysWrap.appendChild(span);
+  });
+
+  let viewDate = input.value ? new Date(input.value + "T00:00:00") : new Date();
+
+  function renderCalendar() {
+    const y = viewDate.getFullYear();
+    const m = viewDate.getMonth();
+    monthLabel.innerText = `${y}년 ${m + 1}월`;
+
+    const firstDay = new Date(y, m, 1).getDay();
+    const daysInMonth = new Date(y, m + 1, 0).getDate();
+    daysWrap.innerHTML = "";
+
+    for (let i = 0; i < firstDay; i++) {
+      const blank = document.createElement("span");
+      blank.className = "dp-day dp-day-blank";
+      daysWrap.appendChild(blank);
+    }
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "dp-day";
+      btn.innerText = d;
+      const dateStr = `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      if (dateStr === input.value) btn.classList.add("selected");
+      if (dateStr === todayKstStr()) btn.classList.add("today");
+      btn.addEventListener("click", () => {
+        input.value = dateStr;
+        trigger.innerText = formatPrettyDateKr(dateStr);
+        popup.classList.add("hidden");
+        input.dispatchEvent(new Event("change"));
+        if (options.onChange) options.onChange(dateStr);
+      });
+      daysWrap.appendChild(btn);
+    }
+  }
+
+  trigger.addEventListener("click", (e) => {
+    e.stopPropagation();
+    document.querySelectorAll(".date-picker-popup").forEach(p => { if (p !== popup) p.classList.add("hidden"); });
+    popup.classList.toggle("hidden");
+    renderCalendar();
+  });
+  prevBtn.addEventListener("click", (e) => { e.stopPropagation(); viewDate.setMonth(viewDate.getMonth() - 1); renderCalendar(); });
+  nextBtn.addEventListener("click", (e) => { e.stopPropagation(); viewDate.setMonth(viewDate.getMonth() + 1); renderCalendar(); });
+  popup.addEventListener("click", (e) => e.stopPropagation());
+  document.addEventListener("click", () => popup.classList.add("hidden"));
+
+  trigger.innerText = formatPrettyDateKr(input.value);
+
+  return {
+    setValue(dateStr) {
+      input.value = dateStr || "";
+      trigger.innerText = formatPrettyDateKr(dateStr);
+      viewDate = dateStr ? new Date(dateStr + "T00:00:00") : new Date();
+    },
+    getValue() {
+      return input.value;
+    }
+  };
+}
+
+/* ---------------------------------------------------------
+   11) 마감 채점 (트랜잭션 기반, 여러 클라이언트가 동시에 시도해도 딱 한 번만 실행됨)
    - 마감 시각이 지난 것을 발견한 아무 클라이언트(관리자든 학생이든)나 이 함수를 호출하면 됨.
    - meta/scored 필드에 트랜잭션을 걸어서 "채점 실행 권한"을 딱 한 클라이언트만 갖도록 함.
 --------------------------------------------------------- */
@@ -309,7 +414,7 @@ async function tryFinalizeQuizScoring(dateStr) {
 }
 
 /* ---------------------------------------------------------
-   11) 스트릭 복구 (가장 최근에 끊긴 스트릭 1회만 복구 가능)
+   12) 스트릭 복구 (가장 최근에 끊긴 스트릭 1회만 복구 가능)
 --------------------------------------------------------- */
 async function recoverStudentStreak(studentId) {
   const snap = await db.ref(`${PATH.STUDENTS}/${studentId}`).once("value");
@@ -327,7 +432,7 @@ async function recoverStudentStreak(studentId) {
 }
 
 /* ---------------------------------------------------------
-   12) 기간별 누적 랭킹 계산 (관리자 패널용)
+   13) 기간별 누적 랭킹 계산 (관리자 패널용)
    quizzes/{date}/answers/{id}/pointsAwarded 를 기간 내 날짜에 대해 모두 더함
 --------------------------------------------------------- */
 async function computeRankingForRange(startDateStr, endDateStr) {
