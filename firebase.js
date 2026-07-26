@@ -11,14 +11,15 @@
    - Firebase 콘솔 > 프로젝트 설정 > 일반 > 내 앱 > SDK 설정 및 구성 에서 확인 가능합니다.
 --------------------------------------------------------- */
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  databaseURL: "https://YOUR_PROJECT-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "YOUR_PROJECT",
-  storageBucket: "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyAKlIm_ZDD4ICyROlSskTKP5fpSixkSeIU",
+  authDomain: "todaysquiz-5167d.firebaseapp.com",
+  databaseURL: "https://todaysquiz-5167d-default-rtdb.firebaseio.com",
+  projectId: "todaysquiz-5167d",
+  storageBucket: "todaysquiz-5167d.firebasestorage.app",
+  messagingSenderId: "582156880416",
+  appId: "1:582156880416:web:3f750531895cdc5f9a4a45"
 };
+
 
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
