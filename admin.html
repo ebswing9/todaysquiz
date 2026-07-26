@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>관리자 - 오늘의 퀴즈</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" />
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+</head>
+<body>
+
+<!-- 1. 관리자 로그인 -->
+<div id="admin-login-view" class="view">
+  <div class="card">
+    <h2>🛠 관리자 로그인</h2>
+    <input id="admin-pw" type="password" placeholder="관리자 비밀번호"/>
+    <button id="btn-admin-login">로그인</button>
+    <p class="hint-text">비밀번호가 아직 설정되지 않았다면, 지금 입력하는 값이 새 비밀번호로 등록됩니다.</p>
+    <p id="admin-login-error" class="error-text"></p>
+  </div>
+</div>
+
+<!-- 2. 관리자 패널 -->
+<div id="admin-view" class="view hidden">
+  <div class="card wide">
+    <h2>🛠 오늘의 퀴즈 · 관리자 패널</h2>
+
+    <div class="pill-tabs">
+      <button class="pill-tab active" data-tab="tab-quiz">퀴즈 등록</button>
+      <button class="pill-tab" data-tab="tab-monitor">진행 상태</button>
+      <button class="pill-tab" data-tab="tab-students">학생 관리</button>
+      <button class="pill-tab" data-tab="tab-streak">스트릭</button>
+      <button class="pill-tab" data-tab="tab-ranking">랭킹</button>
+      <button class="pill-tab" data-tab="tab-danger">초기화</button>
+    </div>
+
+    <!-- ============ 탭: 퀴즈 등록(날짜별) ============ -->
+    <div id="tab-quiz" class="tab-panel">
+      <div class="panel">
+        <h3>날짜 선택 (달력에서 원하는 날짜의 퀴즈를 미리 등록/수정할 수 있어요)</h3>
+        <input type="date" id="quiz-date-picker" />
+
+        <label class="field-label">문제 유형</label>
+        <select id="q-type">
+          <option value="short">단답형</option>
+          <option value="choice">객관식</option>
+        </select>
+
+        <label class="field-label">문제 내용</label>
+        <textarea id="q-text" rows="2" placeholder="예: 대한민국의 수도는?"></textarea>
+
+        <div id="choices-row">
+          <label class="field-label">선택지 (콤마로 구분, 객관식일 때만)</label>
+          <input id="q-choices" type="text" placeholder="예: 서울,부산,대구,인천"/>
+        </div>
+
+        <label class="field-label">정답</label>
+        <input id="q-correct" type="text" placeholder="단답형이면 정확히 일치해야 할 답, 객관식이면 선택지 중 하나"/>
+
+        <label class="field-label">해설 (선택)</label>
+        <textarea id="q-explanation" rows="2" placeholder="마감 후 정답과 함께 보여줄 해설"></textarea>
+
+        <label class="field-label">문제 공개 시각 (revealAt)</label>
+        <input id="q-reveal-at" type="datetime-local"/>
+
+        <label class="field-label">제출 시작 시각 (openAt)</label>
+        <input id="q-open-at" type="datetime-local"/>
+
+        <label class="field-label">마감 시각 (closeAt)</label>
+        <input id="q-close-at" type="datetime-local"/>
+
+        <label class="field-label">점수 부여 방식</label>
+        <select id="q-scoring-mode">
+          <option value="simple">간단 모드 (1등 O점, 등수당 감소)</option>
+          <option value="tier">구간 모드 (등수 구간별 점수 직접 지정)</option>
+        </select>
+
+        <div id="simple-mode-row">
+          <label class="field-label">1등 점수 / 등수당 감소 점수</label>
+          <div style="display:flex; gap:8px;">
+            <input id="q-simple-first" type="number" placeholder="1등 점수 (예: 5)"/>
+            <input id="q-simple-step" type="number" placeholder="등수당 감소 (예: 1)"/>
+          </div>
+        </div>
+
+        <div id="tier-mode-row" class="hidden">
+          <label class="field-label">구간 설정 (시작등수 / 끝등수 / 점수)</label>
+          <div id="tier-rows"></div>
+          <button type="button" class="secondary small-btn" id="btn-add-tier">+ 구간 추가</button>
+        </div>
+
+        <label class="field-label">오답 재시도</label>
+        <div class="toggle-row">
+          <input type="checkbox" id="q-unlimited-retry" checked/>
+          <label for="q-unlimited-retry">무제한 허용</label>
+        </div>
+        <input id="q-retry-limit" type="number" placeholder="제한 횟수 (무제한 해제 시)" class="hidden"/>
+
+        <button id="btn-save-quiz">이 날짜의 퀴즈 저장</button>
+        <p id="quiz-save-status" class="hint-text"></p>
+      </div>
+    </div>
+
+    <!-- ============ 탭: 진행 상태 모니터링(오늘) ============ -->
+    <div id="tab-monitor" class="tab-panel hidden">
+      <div class="panel">
+        <h3 id="monitor-title">오늘 진행 상태</h3>
+        <p>현재 상태: <strong id="monitor-state-text">-</strong></p>
+        <p>제출 인원: <span id="monitor-submit-count">0</span>명 / 정답 확정 인원: <span id="monitor-correct-count">0</span>명</p>
+
+        <button id="btn-force-open">🚀 지금 시작</button>
+        <button id="btn-force-end" class="danger">🔒 지금 종료</button>
+        <button id="btn-reset-force" class="secondary">예약 스케줄대로 되돌리기</button>
+        <p id="monitor-status" class="hint-text"></p>
+      </div>
+    </div>
+
+    <!-- ============ 탭: 학생 관리 ============ -->
+    <div id="tab-students" class="tab-panel hidden">
+      <div class="panel">
+        <h3>학생 수 설정 / 일괄 생성</h3>
+        <input id="student-count-input" type="number" min="1"/>
+        <button id="btn-generate-students">학생 수 적용 (부족한 번호만 새로 생성)</button>
+        <p id="student-count-status" class="hint-text"></p>
+      </div>
+
+      <div class="panel">
+        <h3>비밀번호 + 닉네임 CSV 일괄 적용</h3>
+        <p class="hint-text">CSV 형식: 번호,비밀번호,닉네임 (한 줄에 한 명). 예: 1,1234,백호</p>
+        <input type="file" id="csv-upload" accept=".csv"/>
+        <button id="btn-apply-csv">CSV 적용</button>
+        <button class="secondary" id="btn-download-csv">현재 번호/비밀번호/닉네임 CSV 다운로드</button>
+        <p id="csv-status" class="hint-text"></p>
+      </div>
+
+      <div class="panel">
+        <h3>학생 목록</h3>
+        <div id="student-list" class="list-scroll"></div>
+      </div>
+    </div>
+
+    <!-- ============ 탭: 스트릭 ============ -->
+    <div id="tab-streak" class="tab-panel hidden">
+      <div class="panel">
+        <h3>스트릭 끊김 복구</h3>
+        <p class="hint-text">결석이나 사정으로 스트릭이 끊긴 학생을 확인 후, 필요하면 복구해주세요. (가장 최근에 끊긴 것 1회만 복구 가능)</p>
+        <div id="broken-streak-list" class="list-scroll"></div>
+      </div>
+
+      <div class="panel">
+        <h3>스트릭 배지 단계 설정</h3>
+        <div id="badge-rows"></div>
+        <button type="button" class="secondary small-btn" id="btn-add-badge">+ 단계 추가</button>
+        <button id="btn-save-badges">배지 설정 저장</button>
+        <p id="badge-save-status" class="hint-text"></p>
+      </div>
+    </div>
+
+    <!-- ============ 탭: 랭킹 ============ -->
+    <div id="tab-ranking" class="tab-panel hidden">
+      <div class="panel">
+        <h3>전체 누적 랭킹</h3>
+        <div id="ranking-all-list" class="list-scroll"></div>
+      </div>
+
+      <div class="panel">
+        <h3>기간 지정 랭킹</h3>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <input type="date" id="range-start"/>
+          <span>~</span>
+          <input type="date" id="range-end"/>
+        </div>
+        <button id="btn-range-search">조회</button>
+        <div id="ranking-range-list" class="list-scroll"></div>
+      </div>
+    </div>
+
+    <!-- ============ 탭: 초기화(위험 구역) ============ -->
+    <div id="tab-danger" class="tab-panel hidden">
+      <div class="panel">
+        <h3>점수만 초기화</h3>
+        <p class="hint-text">누적 점수만 0으로 초기화됩니다. 퀴즈 기록/스트릭은 유지됩니다.</p>
+        <button class="danger" id="btn-reset-score">점수 초기화</button>
+      </div>
+
+      <div class="panel danger-zone">
+        <h3>⚠️ 전체 초기화</h3>
+        <div class="toggle-row">
+          <input type="checkbox" id="show-full-reset"/>
+          <label for="show-full-reset">전체 초기화 옵션 표시</label>
+        </div>
+        <div id="full-reset-area" class="hidden">
+          <p class="hint-text">모든 퀴즈 기록, 점수, 스트릭이 삭제됩니다. (학생 번호/비밀번호/닉네임은 유지) 되돌릴 수 없습니다.</p>
+          <button class="danger" id="btn-full-reset">전체 초기화 실행</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="firebase.js"></script>
+<script>
+/* =========================================================
+   admin.js 내용 (admin.html 전용 로직)
+========================================================= */
+let currentConfig = null;
+let cachedStudents = {};
+let cachedBadges = null;
+
+/* ---------------------------------------------------------
+   탭 전환
+--------------------------------------------------------- */
+document.querySelectorAll(".pill-tab").forEach(tab => {
+  tab.addEventListener("click", () => {
+    document.querySelectorAll(".pill-tab").forEach(t => t.classList.remove("active"));
+    document.querySelectorAll(".tab-panel").forEach(p => p.classList.add("hidden"));
+    tab.classList.add("active");
+    document.getElementById(tab.dataset.tab).classList.remove("hidden");
+  });
+});
+
+/* ---------------------------------------------------------
+   관리자 로그인 (비밀번호가 없으면 최초 설정)
+--------------------------------------------------------- */
+document.getElementById("btn-admin-login").addEventListener("click", async () => {
+  const pw = document.getElementById("admin-pw").value;
+  const error = document.getElementById("admin-login-error");
+  error.innerText = "";
+  if (!pw) { error.innerText = "비밀번호를 입력하세요."; return; }
+
+  const snap = await db.ref(`${PATH.ADMIN}/password`).once("value");
+  const existing = snap.val();
+
+  if (existing == null) {
+    await db.ref(`${PATH.ADMIN}/password`).set(pw);
+  } else if (existing !== pw) {
+    error.innerText = "비밀번호가 틀렸습니다.";
+    return;
+  }
+
+  showView("admin-view");
+  startAdmin();
+});
+
+function showView(id) {
+  document.querySelectorAll(".view").forEach(v => v.classList.add("hidden"));
+  document.getElementById(id)?.classList.remove("hidden");
+}
+
+/* ---------------------------------------------------------
+   관리자 진입 후 공통 리스너
+--------------------------------------------------------- */
+function startAdmin() {
+  db.ref(PATH.CONFIG).on("value", snap => {
+    currentConfig = snap.val() || getInitialConfig();
+    if (document.activeElement?.id !== "student-count-input") {
+      document.getElementById("student-count-input").value = currentConfig.studentCount || 29;
+    }
+  });
+
+  db.ref(PATH.STUDENTS).on("value", snap => {
+    cachedStudents = snap.val() || {};
+    renderStudentList();
+    renderBrokenStreakList();
+    renderAllTimeRanking();
+  });
+
+  db.ref(PATH.STREAK_BADGES).on("value", snap => {
+    cachedBadges = snap.val() || getDefaultStreakBadges();
+    renderBadgeRows();
+  });
+
+  const todayStr = todayKstStr();
+  document.getElementById("quiz-date-picker").value = todayStr;
+  loadQuizForDate(todayStr);
+  document.getElementById("quiz-date-picker").addEventListener("change", (e) => {
+    loadQuizForDate(e.target.value);
+  });
+
+  startMonitor(todayStr);
+
+  document.getElementById("range-start").value = todayStr;
+  document.getElementById("range-end").value = todayStr;
+}
+
+/* =========================================================
+   탭: 퀴즈 등록
+========================================================= */
+document.getElementById("q-scoring-mode").addEventListener("change", (e) => {
+  const isTier = e.target.value === SCORING_MODE.TIER;
+  document.getElementById("simple-mode-row").classList.toggle("hidden", isTier);
+  document.getElementById("tier-mode-row").classList.toggle("hidden", !isTier);
+});
+
+document.getElementById("q-unlimited-retry").addEventListener("change", (e) => {
+  document.getElementById("q-retry-limit").classList.toggle("hidden", e.target.checked);
+});
+
+document.getElementById("q-type").addEventListener("change", (e) => {
+  document.getElementById("choices-row").classList.toggle("hidden", e.target.value !== QUESTION_TYPE.CHOICE);
+});
+
+let tierRowsState = [];
+function renderTierRows() {
+  const wrap = document.getElementById("tier-rows");
+  wrap.innerHTML = "";
+  tierRowsState.forEach((tier, idx) => {
+    const row = document.createElement("div");
+    row.className = "tier-row";
+    row.innerHTML = `
+      <input type="number" value="${tier.from}" data-field="from" style="width:70px;"/>
+      <span>~</span>
+      <input type="number" value="${tier.to}" data-field="to" style="width:70px;"/>
+      <span>등</span>
+      <input type="number" value="${tier.points}" data-field="points" style="width:70px;"/>
+      <span>점</span>
+      <button type="button" class="secondary" data-remove="${idx}">삭제</button>
+    `;
+    row.querySelectorAll("input").forEach(inp => {
+      inp.addEventListener("input", () => {
+        tierRowsState[idx][inp.dataset.field] = Number(inp.value) || 0;
+      });
+    });
+    row.querySelector("[data-remove]").addEventListener("click", () => {
+      tierRowsState.splice(idx, 1);
+      renderTierRows();
+    });
+    wrap.appendChild(row);
+  });
+}
+document.getElementById("btn-add-tier").addEventListener("click", () => {
+  const last = tierRowsState[tierRowsState.length - 1];
+  const from = last ? last.to + 1 : 1;
+  tierRowsState.push({ from, to: from + 4, points: 1 });
+  renderTierRows();
+});
+
+async function loadQuizForDate(dateStr) {
+  const [metaSnap, keySnap] = await Promise.all([
+    db.ref(`${PATH.QUIZZES}/${dateStr}/meta`).once("value"),
+    db.ref(`${PATH.QUIZZES}/${dateStr}/answerKey`).once("value")
+  ]);
+  const meta = metaSnap.val() || getInitialQuizMeta();
+  const key = keySnap.val() || {};
+
+  document.getElementById("q-type").value = meta.type || QUESTION_TYPE.SHORT;
+  document.getElementById("choices-row").classList.toggle("hidden", meta.type !== QUESTION_TYPE.CHOICE);
+  document.getElementById("q-text").value = meta.questionText || "";
+  document.getElementById("q-choices").value = (meta.choices || []).join(",");
+  document.getElementById("q-correct").value = key.correctAnswer || "";
+  document.getElementById("q-explanation").value = key.explanation || "";
+  document.getElementById("q-reveal-at").value = formatDateTimeLocal(meta.revealAt);
+  document.getElementById("q-open-at").value = formatDateTimeLocal(meta.openAt);
+  document.getElementById("q-close-at").value = formatDateTimeLocal(meta.closeAt);
+
+  document.getElementById("q-scoring-mode").value = meta.scoringMode || SCORING_MODE.SIMPLE;
+  const isTier = meta.scoringMode === SCORING_MODE.TIER;
+  document.getElementById("simple-mode-row").classList.toggle("hidden", isTier);
+  document.getElementById("tier-mode-row").classList.toggle("hidden", !isTier);
+  document.getElementById("q-simple-first").value = meta.simpleConfig?.first ?? 5;
+  document.getElementById("q-simple-step").value = meta.simpleConfig?.step ?? 1;
+  tierRowsState = (meta.tierConfig && meta.tierConfig.length) ? JSON.parse(JSON.stringify(meta.tierConfig)) : [{ from: 1, to: 5, points: 5 }];
+  renderTierRows();
+
+  const unlimited = meta.retryLimit == null;
+  document.getElementById("q-unlimited-retry").checked = unlimited;
+  document.getElementById("q-retry-limit").classList.toggle("hidden", unlimited);
+  document.getElementById("q-retry-limit").value = unlimited ? "" : meta.retryLimit;
+
+  document.getElementById("quiz-save-status").innerText = "";
+}
+
+document.getElementById("btn-save-quiz").addEventListener("click", async () => {
+  const status = document.getElementById("quiz-save-status");
+  status.innerText = "";
+  const dateStr = document.getElementById("quiz-date-picker").value;
+  if (!dateStr) { status.innerText = "날짜를 선택하세요."; return; }
+
+  const questionText = document.getElementById("q-text").value.trim();
+  if (!questionText) { status.innerText = "문제 내용을 입력하세요."; return; }
+
+  const type = document.getElementById("q-type").value;
+  const choices = document.getElementById("q-choices").value.split(",").map(s => s.trim()).filter(Boolean);
+  const correctAnswer = document.getElementById("q-correct").value.trim();
+  if (!correctAnswer) { status.innerText = "정답을 입력하세요."; return; }
+  if (type === QUESTION_TYPE.CHOICE && choices.length < 2) { status.innerText = "선택지를 2개 이상 입력하세요."; return; }
+  if (type === QUESTION_TYPE.CHOICE && !choices.includes(correctAnswer)) { status.innerText = "정답은 선택지 중 하나여야 합니다."; return; }
+
+  const explanation = document.getElementById("q-explanation").value.trim();
+
+  const revealAt = parseDateTimeLocal(document.getElementById("q-reveal-at").value);
+  const openAt = parseDateTimeLocal(document.getElementById("q-open-at").value);
+  const closeAt = parseDateTimeLocal(document.getElementById("q-close-at").value);
+
+  const scoringMode = document.getElementById("q-scoring-mode").value;
+  const simpleConfig = {
+    first: Number(document.getElementById("q-simple-first").value) || 0,
+    step: Number(document.getElementById("q-simple-step").value) || 0
+  };
+
+  const unlimited = document.getElementById("q-unlimited-retry").checked;
+  const retryLimit = unlimited ? null : (Number(document.getElementById("q-retry-limit").value) || null);
+
+  const existingSnap = await db.ref(`${PATH.QUIZZES}/${dateStr}/meta`).once("value");
+  const existing = existingSnap.val();
+
+  const meta = {
+    questionText, type, choices,
+    revealAt, openAt, closeAt,
+    scoringMode,
+    simpleConfig,
+    tierConfig: tierRowsState,
+    retryLimit,
+    forcedState: existing ? (existing.forcedState ?? null) : null,
+    rankCounter: existing ? (existing.rankCounter ?? 0) : 0,
+    scored: existing ? (existing.scored ?? false) : false
+  };
+
+  await db.ref(`${PATH.QUIZZES}/${dateStr}/meta`).set(meta);
+  await db.ref(`${PATH.QUIZZES}/${dateStr}/answerKey`).set({ correctAnswer, explanation });
+
+  status.innerText = `✅ ${dateStr} 퀴즈가 저장되었습니다.`;
+});
+
+/* =========================================================
+   탭: 진행 상태 모니터링
+========================================================= */
+function startMonitor(dateStr) {
+  document.getElementById("monitor-title").innerText = `${dateStr} 진행 상태`;
+
+  db.ref(`${PATH.QUIZZES}/${dateStr}/meta`).on("value", snap => {
+    const meta = snap.val();
+    renderMonitor(dateStr, meta);
+  });
+  db.ref(`${PATH.QUIZZES}/${dateStr}/answers`).on("value", snap => {
+    const answers = snap.val() || {};
+    const submitCount = Object.keys(answers).length;
+    const correctCount = Object.values(answers).filter(a => a.correctRank != null).length;
+    document.getElementById("monitor-submit-count").innerText = submitCount;
+    document.getElementById("monitor-correct-count").innerText = correctCount;
+  });
+
+  setInterval(() => {
+    db.ref(`${PATH.QUIZZES}/${dateStr}/meta`).once("value").then(snap => renderMonitor(dateStr, snap.val()));
+  }, 1000);
+}
+
+function renderMonitor(dateStr, meta) {
+  const stateLabelMap = {
+    BEFORE_REVEAL: "공개 전",
+    REVEALED_WAIT: "공개됨 (제출 대기)",
+    OPEN: "제출 진행 중",
+    CLOSED: "마감됨"
+  };
+  const state = meta ? computeQuizState(meta, serverNow()) : QUIZ_STATE.BEFORE_REVEAL;
+  document.getElementById("monitor-state-text").innerText = meta
+    ? `${stateLabelMap[state]}${meta.forcedState ? " (수동 강제 설정됨)" : ""}`
+    : "이 날짜에 등록된 퀴즈가 없습니다.";
+
+  if (state === QUIZ_STATE.CLOSED && meta && meta.scored !== true) {
+    tryFinalizeQuizScoring(dateStr).catch(() => {});
+  }
+}
+
+document.getElementById("btn-force-open").addEventListener("click", async () => {
+  if (!confirm("예약된 시각과 상관없이 지금 바로 퀴즈를 시작합니다. 계속할까요?")) return;
+  const dateStr = todayKstStr();
+  await db.ref(`${PATH.QUIZZES}/${dateStr}/meta/forcedState`).set("OPEN");
+  document.getElementById("monitor-status").innerText = "✅ 지금 시작 처리되었습니다.";
+});
+
+document.getElementById("btn-force-end").addEventListener("click", async () => {
+  if (!confirm("지금 바로 마감하고 정답을 공개합니다. 계속할까요?")) return;
+  const dateStr = todayKstStr();
+  await db.ref(`${PATH.QUIZZES}/${dateStr}/meta/forcedState`).set("END");
+  await tryFinalizeQuizScoring(dateStr);
+  document.getElementById("monitor-status").innerText = "✅ 지금 종료 처리되었습니다.";
+});
+
+document.getElementById("btn-reset-force").addEventListener("click", async () => {
+  const dateStr = todayKstStr();
+  await db.ref(`${PATH.QUIZZES}/${dateStr}/meta/forcedState`).set(null);
+  document.getElementById("monitor-status").innerText = "예약 스케줄대로 되돌렸습니다.";
+});
+
+/* =========================================================
+   탭: 학생 관리
+========================================================= */
+function renderStudentList() {
+  const container = document.getElementById("student-list");
+  const ids = Object.keys(cachedStudents).map(Number).sort((a, b) => a - b);
+  if (ids.length === 0) { container.innerHTML = "<p class='hint-text'>학생이 없습니다.</p>"; return; }
+
+  container.innerHTML = ids.map(id => {
+    const s = cachedStudents[id];
+    const online = s.status === "ONLINE";
+    return `<div class="student-row">
+      <span>${id}번 · ${escapeHtml(s.nickname || "(닉네임 없음)")}</span>
+      <span><span class="status-badge ${online ? "status-online" : "status-offline"}">${online ? "접속중" : "오프라인"}</span> 🪙${s.totalScore || 0} 🔥${s.currentStreak || 0}</span>
+    </div>`;
+  }).join("");
+}
+
+document.getElementById("btn-generate-students").addEventListener("click", async () => {
+  const status = document.getElementById("student-count-status");
+  const studentCount = parseInt(document.getElementById("student-count-input").value, 10);
+  if (!studentCount || studentCount < 1) { status.innerText = "학생 수는 1 이상이어야 합니다."; return; }
+
+  await db.ref(`${PATH.CONFIG}/studentCount`).set(studentCount);
+
+  const snap = await db.ref(PATH.STUDENTS).once("value");
+  const existing = snap.val() || {};
+  const additions = {};
+  for (let i = 1; i <= studentCount; i++) {
+    if (!existing[i]) {
+      additions[`${PATH.STUDENTS}/${i}`] = {
+        password: String(1000 + i),
+        nickname: `학생${i}`,
+        status: "OFFLINE",
+        totalScore: 0,
+        currentStreak: 0,
+        longestStreak: 0,
+        brokenStreakDate: null,
+        brokenStreakValue: null
+      };
+    }
+  }
+  if (Object.keys(additions).length > 0) {
+    await db.ref().update(additions);
+    status.innerText = `✅ 총 ${studentCount}명으로 설정, ${Object.keys(additions).length}명 신규 생성됨 (닉네임은 CSV로 지정해주세요)`;
+  } else {
+    status.innerText = `✅ 총 ${studentCount}명 (변경 없음)`;
+  }
+});
+
+document.getElementById("btn-download-csv").addEventListener("click", () => {
+  const rows = Object.keys(cachedStudents)
+    .map(Number).sort((a, b) => a - b)
+    .map(id => `${id},${cachedStudents[id].password},${csvField(cachedStudents[id].nickname || "")}`);
+  downloadCsv(rows.join("\n"), "student_accounts.csv");
+});
+
+document.getElementById("btn-apply-csv").addEventListener("click", () => {
+  const fileInput = document.getElementById("csv-upload");
+  const status = document.getElementById("csv-status");
+  status.innerText = "";
+  const file = fileInput.files[0];
+  if (!file) { status.innerText = "CSV 파일을 선택하세요."; return; }
+
+  const maxId = currentConfig?.studentCount || 29;
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    const lines = e.target.result.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+
+    const usedNicknames = {};
+    Object.keys(cachedStudents).forEach(id => {
+      if (cachedStudents[id].nickname) usedNicknames[cachedStudents[id].nickname] = String(id);
+    });
+
+    const updates = {};
+    const errors = [];
+    let successCount = 0;
+
+    lines.forEach((line, idx) => {
+      const parts = line.split(",").map(p => p.trim());
+      if (parts.length !== 3) { errors.push(`${idx + 1}행 형식 오류(번호,비밀번호,닉네임)`); return; }
+      const [idStr, pw, nickname] = parts;
+      const id = parseInt(idStr, 10);
+      if (isNaN(id) || id < 1 || id > maxId) { errors.push(`${idx + 1}행 번호 오류(${idStr})`); return; }
+      if (!pw) { errors.push(`${idx + 1}행 비밀번호 없음`); return; }
+      if (!nickname) { errors.push(`${idx + 1}행 닉네임 없음`); return; }
+
+      const holder = usedNicknames[nickname];
+      if (holder && holder !== String(id)) {
+        errors.push(`${idx + 1}행 닉네임 중복(${nickname}, 이미 ${holder}번이 사용 중)`);
+        return;
+      }
+      usedNicknames[nickname] = String(id);
+
+      updates[`${PATH.STUDENTS}/${id}/password`] = pw;
+      updates[`${PATH.STUDENTS}/${id}/nickname`] = nickname;
+      successCount++;
+    });
+
+    if (Object.keys(updates).length > 0) await db.ref().update(updates);
+
+    let message = `✅ ${successCount}명 적용 완료`;
+    if (errors.length > 0) message += ` / ⚠️ 오류 ${errors.length}건: ${errors.join(", ")}`;
+    status.innerText = message;
+    fileInput.value = "";
+  };
+  reader.readAsText(file);
+});
+
+/* =========================================================
+   탭: 스트릭
+========================================================= */
+function renderBrokenStreakList() {
+  const container = document.getElementById("broken-streak-list");
+  const broken = Object.keys(cachedStudents).filter(id => cachedStudents[id].brokenStreakDate != null);
+  if (broken.length === 0) { container.innerHTML = "<p class='hint-text'>끊긴 스트릭이 없습니다.</p>"; return; }
+
+  container.innerHTML = broken.map(id => {
+    const s = cachedStudents[id];
+    return `<div class="student-row">
+      <span>${id}번 · ${escapeHtml(s.nickname || "")} — ${s.brokenStreakDate}에 끊김 (${s.brokenStreakValue}일 → 복구 가능)</span>
+      <button type="button" class="small-btn mint" data-recover="${id}">복구</button>
+    </div>`;
+  }).join("");
+
+  container.querySelectorAll("[data-recover]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      await recoverStudentStreak(btn.dataset.recover);
+    });
+  });
+}
+
+function renderBadgeRows() {
+  const wrap = document.getElementById("badge-rows");
+  const list = Object.values(cachedBadges || {}).sort((a, b) => a.days - b.days);
+  wrap.innerHTML = "";
+  list.forEach((b, idx) => {
+    const row = document.createElement("div");
+    row.className = "tier-row";
+    row.innerHTML = `
+      <input type="number" value="${b.days}" data-field="days" style="width:80px;"/>
+      <span>일 연속 →</span>
+      <input type="text" value="${b.icon}" data-field="icon" style="width:80px;"/>
+      <button type="button" class="secondary" data-remove="${idx}">삭제</button>
+    `;
+    row.querySelectorAll("input").forEach(inp => {
+      inp.addEventListener("input", () => {
+        list[idx][inp.dataset.field] = inp.dataset.field === "days" ? Number(inp.value) : inp.value;
+      });
+    });
+    row.querySelector("[data-remove]").addEventListener("click", () => {
+      list.splice(idx, 1);
+      cachedBadges = list;
+      renderBadgeRows();
+    });
+    wrap.appendChild(row);
+  });
+  cachedBadges = list;
+}
+document.getElementById("btn-add-badge").addEventListener("click", () => {
+  const list = Object.values(cachedBadges || {});
+  list.push({ days: 3, icon: "⭐" });
+  cachedBadges = list;
+  renderBadgeRows();
+});
+document.getElementById("btn-save-badges").addEventListener("click", async () => {
+  await db.ref(PATH.STREAK_BADGES).set(cachedBadges || getDefaultStreakBadges());
+  document.getElementById("badge-save-status").innerText = "✅ 저장되었습니다.";
+});
+
+/* =========================================================
+   탭: 랭킹
+========================================================= */
+function renderAllTimeRanking() {
+  const container = document.getElementById("ranking-all-list");
+  const ranked = Object.keys(cachedStudents)
+    .map(id => ({ id, nickname: cachedStudents[id].nickname || `${id}번`, score: cachedStudents[id].totalScore || 0 }))
+    .sort((a, b) => b.score - a.score);
+  container.innerHTML = ranked.map((r, idx) =>
+    `<div class="student-row"><span>${idx + 1}위 · ${escapeHtml(r.nickname)}</span><span class="rank-score">${r.score}점</span></div>`
+  ).join("") || "<p class='hint-text'>기록이 없습니다.</p>";
+}
+
+document.getElementById("btn-range-search").addEventListener("click", async () => {
+  const start = document.getElementById("range-start").value;
+  const end = document.getElementById("range-end").value;
+  const container = document.getElementById("ranking-range-list");
+  if (!start || !end) { container.innerHTML = "<p class='hint-text'>기간을 선택하세요.</p>"; return; }
+
+  const totals = await computeRankingForRange(start, end);
+  const ranked = Object.keys(totals)
+    .map(id => ({ id, nickname: cachedStudents[id]?.nickname || `${id}번`, score: totals[id] }))
+    .sort((a, b) => b.score - a.score);
+
+  container.innerHTML = ranked.map((r, idx) =>
+    `<div class="student-row"><span>${idx + 1}위 · ${escapeHtml(r.nickname)}</span><span class="rank-score">${r.score}점</span></div>`
+  ).join("") || "<p class='hint-text'>해당 기간 기록이 없습니다.</p>";
+});
+
+/* =========================================================
+   탭: 초기화
+========================================================= */
+document.getElementById("btn-reset-score").addEventListener("click", async () => {
+  if (!confirm("퀴즈 기록은 유지되고 점수만 0으로 초기화됩니다. 계속할까요?")) return;
+  const updates = {};
+  Object.keys(cachedStudents).forEach(id => {
+    updates[`${PATH.STUDENTS}/${id}/totalScore`] = 0;
+  });
+  await db.ref().update(updates);
+  alert("✅ 점수가 초기화되었습니다.");
+});
+
+document.getElementById("show-full-reset").addEventListener("change", (e) => {
+  document.getElementById("full-reset-area").classList.toggle("hidden", !e.target.checked);
+});
+
+document.getElementById("btn-full-reset").addEventListener("click", async () => {
+  const typed = prompt('정말로 모든 기록을 삭제하려면 "전체 초기화" 라고 정확히 입력하세요.');
+  if (typed !== "전체 초기화") { alert("입력한 문구가 일치하지 않아 취소되었습니다."); return; }
+
+  await db.ref(PATH.QUIZZES).remove();
+  const updates = {};
+  Object.keys(cachedStudents).forEach(id => {
+    updates[`${PATH.STUDENTS}/${id}/totalScore`] = 0;
+    updates[`${PATH.STUDENTS}/${id}/currentStreak`] = 0;
+    updates[`${PATH.STUDENTS}/${id}/longestStreak`] = 0;
+    updates[`${PATH.STUDENTS}/${id}/brokenStreakDate`] = null;
+    updates[`${PATH.STUDENTS}/${id}/brokenStreakValue`] = null;
+  });
+  await db.ref().update(updates);
+  alert("✅ 전체 초기화가 완료되었습니다. (학생 번호/비밀번호/닉네임은 유지됨)");
+});
+</script>
+</body>
+</html>

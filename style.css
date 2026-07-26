@@ -1,0 +1,464 @@
+/* =========================================================
+   style.css — "오늘의 퀴즈" 공통 디자인
+   팔레트: 딥 인디고/보라 배경 + 골드(점수) + 코랄(스트릭) + 민트(정답) 포인트
+   폰트: Jua(제목/버튼, 게임스러운 둥근 느낌) + Pretendard(본문, 가독성)
+========================================================= */
+
+@import url("https://fonts.googleapis.com/css2?family=Jua&display=swap");
+
+:root {
+  --bg-deep: #170F2E;
+  --bg-card: #241A44;
+  --bg-card-alt: #2E2159;
+  --bg-input: #1D1338;
+  --border-soft: #40316E;
+
+  --accent-gold: #FFC145;
+  --accent-gold-dark: #C98A1E;
+  --accent-coral: #FF6B5B;
+  --accent-mint: #3DDC97;
+  --accent-red: #FF5C7A;
+
+  --text-main: #F4EFFF;
+  --text-muted: #B6A8DE;
+  --text-faint: #7C6BA6;
+}
+
+* {
+  box-sizing: border-box;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+h1, h2, h3, .display-font, button {
+  font-family: 'Jua', 'Pretendard', sans-serif;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(circle at 15% 10%, rgba(255,193,69,0.10), transparent 40%),
+    radial-gradient(circle at 85% 90%, rgba(255,107,91,0.10), transparent 40%),
+    var(--bg-deep);
+  color: var(--text-main);
+  min-height: 100vh;
+}
+
+.hidden { display: none !important; }
+
+.view {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: 90px 20px 30px;
+}
+
+/* =========================
+   상단 HUD (닉네임 / 점수 / 스트릭 / 왕관)
+========================= */
+.hud {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 16px;
+  background: rgba(23, 15, 46, 0.92);
+  backdrop-filter: blur(6px);
+  border-bottom: 1px solid var(--border-soft);
+  z-index: 50;
+}
+
+.hud-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.hud-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.hud-nickname { color: var(--text-main); }
+
+.hud-score {
+  color: var(--accent-gold);
+}
+.hud-score::before { content: "🪙 "; }
+
+.hud-streak { color: var(--accent-coral); }
+
+.hud-crown-btn {
+  width: auto;
+  padding: 8px 12px;
+  margin: 0;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--accent-gold), var(--accent-gold-dark));
+  color: #2A1B03;
+  font-size: 16px;
+  box-shadow: 0 2px 8px rgba(255,193,69,0.35);
+}
+.hud-crown-btn:hover { filter: brightness(1.08); }
+
+.hud-logout {
+  width: auto;
+  padding: 8px 12px;
+  margin: 0;
+  background: transparent;
+  border: 1px solid var(--border-soft);
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+/* =========================
+   카드 UI
+========================= */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
+  padding: 26px;
+  border-radius: 18px;
+  width: 380px;
+  max-width: 100%;
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+}
+
+.card.wide { width: 680px; }
+
+.card h2 {
+  margin-top: 0;
+  font-size: 1.5rem;
+  letter-spacing: 0.5px;
+}
+
+/* =========================
+   입력 / 버튼
+========================= */
+input, select, textarea {
+  width: 100%;
+  padding: 11px 12px;
+  margin: 8px 0;
+  border: 1.5px solid var(--border-soft);
+  border-radius: 10px;
+  background: var(--bg-input);
+  color: var(--text-main);
+  font-size: 14px;
+}
+input::placeholder, textarea::placeholder { color: var(--text-faint); }
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--accent-gold);
+  box-shadow: 0 0 0 3px rgba(255,193,69,0.18);
+}
+textarea { resize: vertical; }
+
+button {
+  width: 100%;
+  padding: 12px;
+  margin-top: 10px;
+  border: none;
+  border-radius: 10px;
+  background: var(--accent-gold);
+  color: #2A1B03;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 15px;
+  transition: transform 0.1s, filter 0.15s;
+}
+button:hover { filter: brightness(1.06); transform: translateY(-1px); }
+button:active { transform: translateY(0); }
+button:disabled {
+  background: var(--bg-card-alt);
+  color: var(--text-faint);
+  cursor: not-allowed;
+  transform: none;
+}
+
+button.secondary {
+  background: var(--bg-card-alt);
+  color: var(--text-main);
+  border: 1px solid var(--border-soft);
+}
+button.secondary:hover { background: #382a63; }
+
+button.danger {
+  background: var(--accent-red);
+  color: #3A0410;
+}
+
+button.mint {
+  background: var(--accent-mint);
+  color: #04331F;
+}
+
+.error-text { color: var(--accent-red); font-size: 13px; }
+.hint-text { font-size: 12px; color: var(--text-muted); text-align: left; margin: 4px 0; }
+.muted { color: var(--text-muted); }
+
+.field-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-top: 12px;
+  margin-bottom: 2px;
+  text-align: left;
+}
+
+/* =========================
+   퀴즈 카드 (질문 표시) — 시그니처 요소: "오늘의 퀘스트" 스크롤 카드
+========================= */
+.quest-card {
+  text-align: left;
+  background: var(--bg-card-alt);
+  border: 2px solid var(--accent-gold-dark);
+  border-radius: 16px;
+  padding: 20px;
+  margin: 14px 0;
+  position: relative;
+}
+.quest-card::before {
+  content: "오늘의 퀘스트";
+  position: absolute;
+  top: -12px;
+  left: 16px;
+  background: var(--accent-gold);
+  color: #2A1B03;
+  font-family: 'Jua', sans-serif;
+  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+
+.quest-question {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin-top: 10px;
+  line-height: 1.5;
+}
+
+.choice-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.choice-card {
+  background: var(--bg-input);
+  border: 2px solid var(--border-soft);
+  border-radius: 12px;
+  padding: 12px 16px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  transition: transform 0.12s, border-color 0.12s;
+}
+.choice-card:hover { transform: scale(1.01); border-color: var(--accent-gold); }
+.choice-card.selected {
+  background: rgba(255,193,69,0.15);
+  border-color: var(--accent-gold);
+  font-weight: 700;
+}
+
+.countdown-text {
+  font-family: 'Jua', sans-serif;
+  font-size: 1.1rem;
+  color: var(--accent-gold);
+  text-align: center;
+  margin: 14px 0;
+}
+
+.retry-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 6px;
+}
+
+/* 마감 후 정답/해설 */
+.answer-key-box {
+  margin-top: 14px;
+  padding: 12px 14px;
+  background: rgba(61,220,151,0.10);
+  border: 1px solid var(--accent-mint);
+  border-radius: 10px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.answer-key-box .ak-label { color: var(--accent-mint); font-weight: 700; margin-right: 4px; }
+.answer-key-box .ak-correct { color: var(--accent-mint); font-weight: 700; }
+.answer-key-box .ak-wrong { color: var(--accent-red); font-weight: 700; }
+
+.result-summary {
+  margin-top: 10px;
+  padding: 14px;
+  border-radius: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
+  text-align: center;
+}
+.result-summary .rs-points { font-family: 'Jua', sans-serif; font-size: 1.4rem; color: var(--accent-gold); }
+
+/* =========================
+   스트릭 뱃지 / TOP5 모달
+========================= */
+.badge-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255,107,91,0.15);
+  border: 1px solid var(--accent-coral);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent-coral);
+}
+
+.modal {
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(9, 5, 22, 0.72);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 100;
+  padding: 20px;
+}
+.modal-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
+  padding: 22px;
+  border-radius: 16px;
+  width: 380px;
+  max-width: 100%;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+.modal-box.wide { width: 640px; }
+.modal-box h3 { margin-top: 0; font-size: 1.2rem; }
+
+.rank-list { list-style: none; padding: 0; margin: 10px 0; }
+.rank-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.rank-row:last-child { border-bottom: none; }
+.rank-medal { font-size: 1.1rem; width: 28px; text-align: center; }
+.rank-name { flex: 1; font-weight: 600; }
+.rank-score { color: var(--accent-gold); font-weight: 700; }
+
+/* =========================
+   관리자 패널
+========================= */
+.panel {
+  margin-top: 18px;
+  padding: 16px;
+  background: var(--bg-card-alt);
+  border-radius: 12px;
+  text-align: left;
+  border: 1px solid var(--border-soft);
+}
+.panel h3 { margin-top: 0; font-size: 1.05rem; color: var(--accent-gold); }
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+.toggle-row input { width: auto; margin: 0; }
+
+.tier-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.tier-row input { margin: 0; }
+.tier-row button {
+  width: auto;
+  padding: 8px 10px;
+  margin: 0;
+}
+
+.student-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 4px;
+  border-top: 1px solid var(--border-soft);
+  gap: 8px;
+  font-size: 13px;
+}
+.student-row:first-child { border-top: none; }
+
+.status-badge {
+  display: inline-block;
+  min-width: 70px;
+  text-align: center;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 11px;
+}
+.status-online { background: rgba(61,220,151,0.18); color: var(--accent-mint); }
+.status-offline { background: rgba(182,168,222,0.15); color: var(--text-muted); }
+
+.list-scroll {
+  max-height: 240px;
+  overflow-y: auto;
+  font-size: 13px;
+}
+
+.danger-zone {
+  border: 1px dashed var(--accent-red);
+}
+.danger-zone h3 { color: var(--accent-red); }
+
+.small-btn {
+  width: auto;
+  padding: 6px 10px;
+  margin: 0;
+  font-size: 12px;
+}
+
+.pill-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.pill-tab {
+  width: auto;
+  margin: 0;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--bg-card);
+  color: var(--text-muted);
+  border: 1px solid var(--border-soft);
+  font-size: 13px;
+}
+.pill-tab.active {
+  background: var(--accent-gold);
+  color: #2A1B03;
+}
+
+@media (max-width: 720px) {
+  .card.wide, .modal-box.wide { width: 100%; }
+  .hud { flex-wrap: wrap; }
+}
