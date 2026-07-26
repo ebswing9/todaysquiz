@@ -352,7 +352,7 @@ function renderOpenState() {
 
   retryHint.innerText = retryLimit != null
     ? (limitReached ? "더 이상 제출할 수 없습니다." : `남은 제출 횟수: ${retryLimit - attemptCount}회`)
-    : "제출 횟수 제한 없음 (자유롭게 다시 제출 가능)";
+    : "제출 횟수 제한 없음";
 
   // 입력 UI를 매번 새로 그리면 타이핑 중 커서가 튀므로, 최초 1회만 그림
   if (lastRenderedState !== "OPEN_" + currentMeta.type) {
@@ -440,10 +440,11 @@ document.getElementById("btn-submit-answer").addEventListener("click", async () 
   // 같은 세션에서는 계속 입력 화면을 유지하고 모달로만 확인시켜줌.
   // 새로고침하거나 나중에 다시 접속하면 그때 "제출 완료" 요약 화면이 보임.
   forceEditMode = true;
+  const limitReachedNow = retryLimit != null && newAttemptCount >= retryLimit;
   document.getElementById("submit-modal-answer").innerText = answer;
   document.getElementById("submit-modal-retry").innerText = retryLimit != null
     ? (limitReachedNow ? "더 이상 제출할 수 없습니다." : `남은 제출 횟수: ${retryLimit - newAttemptCount}회`)
-    : "제출 횟수 제한 없음 (언제든 다시 제출 가능)";
+    : "제출 횟수 제한 없음";
   document.getElementById("submit-modal").classList.remove("hidden");
 });
 

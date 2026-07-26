@@ -22,7 +22,7 @@
   --accent-coral: #FF6B5B;
   --accent-mint: #17B892;
   --accent-red: #FFB6D9;
-  --accent-red-dark: #D6467F;
+  --accent-red-dark: #FF5C8A;
 
   --text-main: #241B3D;
   --text-muted: #6B6089;
@@ -227,8 +227,8 @@ button.secondary {
 button.secondary:hover { background: #EFE7FF; }
 
 button.danger {
-  background: var(--accent-red-dark);
-  color: #FFFFFF;
+  background: var(--accent-red);
+  color: var(--text-main);
 }
 
 button.mint {
@@ -448,6 +448,41 @@ button.mint {
   margin-top: 8px;
 }
 .toggle-row input { width: auto; margin: 0; }
+.toggle-row label {
+  font-family: 'Jua', sans-serif;
+  font-size: 13px;
+  color: var(--text-main);
+  cursor: pointer;
+}
+
+/* 체크박스 커스텀 스타일 (파스텔 테마에 맞게) */
+input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border-strong);
+  border-radius: 6px;
+  background: #FFFFFF;
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+  transition: background 0.12s, border-color 0.12s;
+}
+input[type="checkbox"]:hover { border-color: var(--accent-violet-dark); }
+input[type="checkbox"]:checked {
+  background: var(--accent-violet);
+  border-color: var(--accent-violet-dark);
+}
+input[type="checkbox"]:checked::after {
+  content: "✓";
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -58%);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-main);
+}
 
 .tier-row {
   display: flex;
