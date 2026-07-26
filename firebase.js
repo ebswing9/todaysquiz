@@ -20,7 +20,6 @@ const firebaseConfig = {
   appId: "1:582156880416:web:3f750531895cdc5f9a4a45"
 };
 
-
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
@@ -176,7 +175,8 @@ function getDefaultStreakBadges() {
 --------------------------------------------------------- */
 function getInitialConfig() {
   return {
-    studentCount: 29
+    studentCount: 29,
+    defaultQuizTimes: { ...DEFAULT_QUIZ_TIMES }
   };
 }
 
@@ -344,7 +344,45 @@ function attachDatePicker(wrapper, options) {
 }
 
 /* ---------------------------------------------------------
+   10-a) 시/분 <select> 옵션 채우기 (공용) + 시각만 선택하는 간단한 선택기
+--------------------------------------------------------- */
+function populateHourMinuteOptions(hourSelect, minuteSelect) {
+  for (let h = 0; h < 24; h++) {
+    const opt = document.createElement("option");
+    opt.value = String(h).padStart(2, "0");
+    opt.innerText = `${String(h).padStart(2, "0")}시`;
+    hourSelect.appendChild(opt);
+  }
+  for (let mm = 0; mm < 60; mm += 5) {
+    const opt = document.createElement("option");
+    opt.value = String(mm).padStart(2, "0");
+    opt.innerText = `${String(mm).padStart(2, "0")}분`;
+    minuteSelect.appendChild(opt);
+  }
+}
+
+/* 날짜 없이 시:분만 고르는 간단한 선택기 (관리자 패널의 "기본 시각 설정"용)
+   HTML: <span class="time-only-picker"><select class="tp-hour"></select>:<select class="tp-minute"></select></span> */
+function attachTimeOnlyPicker(wrapper, initialValue) {
+  const hourSelect = wrapper.querySelector(".tp-hour");
+  const minuteSelect = wrapper.querySelector(".tp-minute");
+  populateHourMinuteOptions(hourSelect, minuteSelect);
+  const [h, m] = (initialValue || "08:00").split(":");
+  hourSelect.value = h;
+  minuteSelect.value = m;
+  return {
+    getValue() { return `${hourSelect.value}:${minuteSelect.value}`; },
+    setValue(value) {
+      const [hh, mm] = (value || "08:00").split(":");
+      hourSelect.value = hh;
+      minuteSelect.value = mm;
+    }
+  };
+}
+
+/* ---------------------------------------------------------
    10-b) 기본 시각 (새 날짜에 처음 문제를 등록할 때 미리 채워줄 값)
+   관리자 패널에서 config/defaultQuizTimes 로 바꿀 수 있음. 없으면 이 기본값 사용.
 --------------------------------------------------------- */
 const DEFAULT_QUIZ_TIMES = {
   reveal: "08:00",
@@ -397,18 +435,7 @@ function attachDateTimePicker(wrapper, options) {
     span.innerText = w;
     weekdaysWrap.appendChild(span);
   });
-  for (let h = 0; h < 24; h++) {
-    const opt = document.createElement("option");
-    opt.value = String(h).padStart(2, "0");
-    opt.innerText = `${String(h).padStart(2, "0")}시`;
-    hourSelect.appendChild(opt);
-  }
-  for (let mm = 0; mm < 60; mm += 5) {
-    const opt = document.createElement("option");
-    opt.value = String(mm).padStart(2, "0");
-    opt.innerText = `${String(mm).padStart(2, "0")}분`;
-    minuteSelect.appendChild(opt);
-  }
+  populateHourMinuteOptions(hourSelect, minuteSelect);
 
   function splitValue(value) {
     if (!value) return { date: todayKstStr(), time: defaultTime };

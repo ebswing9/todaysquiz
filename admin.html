@@ -27,7 +27,7 @@
 <div id="admin-view" class="view hidden">
   <div class="card wide">
     <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;">
-      <h2 style="margin:0;">[관리자 모드]</h2>
+      <h2 style="margin:0;">🛠️ 관리자 모드</h2>
       <button id="btn-admin-logout" class="secondary small-btn" style="width:auto;">로그아웃</button>
     </div>
 
@@ -42,6 +42,34 @@
 
     <!-- ============ 탭: 퀴즈 등록(날짜별) ============ -->
     <div id="tab-quiz" class="tab-panel">
+      <div class="panel">
+        <div class="toggle-row">
+          <input type="checkbox" id="show-default-times"/>
+          <label for="show-default-times">기본 예약 시각 설정</label>
+        </div>
+        <div id="default-times-area" class="hidden">
+          <p class="hint-text">새 날짜에 처음 문제를 등록할 때 미리 채워질 시각이에요. (날짜별로 저장 후에는 각자 자유롭게 수정 가능)</p>
+
+          <label class="field-label">기본 문제 공개 시각</label>
+          <span class="time-only-picker" id="default-reveal-time">
+            <select class="tp-hour"></select>:<select class="tp-minute"></select>
+          </span>
+
+          <label class="field-label">기본 제출 시작 시각</label>
+          <span class="time-only-picker" id="default-open-time">
+            <select class="tp-hour"></select>:<select class="tp-minute"></select>
+          </span>
+
+          <label class="field-label">기본 마감 시각</label>
+          <span class="time-only-picker" id="default-close-time">
+            <select class="tp-hour"></select>:<select class="tp-minute"></select>
+          </span>
+
+          <button id="btn-save-default-times" class="secondary">기본 시각 저장</button>
+          <p id="default-times-status" class="hint-text"></p>
+        </div>
+      </div>
+
       <div class="panel">
         <h3>날짜 선택 (달력에서 원하는 날짜의 퀴즈를 미리 등록/수정할 수 있어요)</h3>
         <div class="date-picker" id="quiz-date-picker-wrap" data-date-picker>
@@ -380,6 +408,12 @@ function startAdmin() {
     if (document.activeElement?.id !== "student-count-input") {
       document.getElementById("student-count-input").value = currentConfig.studentCount || 29;
     }
+    const times = currentConfig.defaultQuizTimes || DEFAULT_QUIZ_TIMES;
+    if (window.__timeOnlyPickers) {
+      window.__timeOnlyPickers.reveal.setValue(times.reveal);
+      window.__timeOnlyPickers.open.setValue(times.open);
+      window.__timeOnlyPickers.close.setValue(times.close);
+    }
   });
 
   db.ref(PATH.STUDENTS).on("value", snap => {
@@ -421,6 +455,14 @@ function startAdmin() {
     });
   }
 
+  if (!window.__timeOnlyPickers) {
+    window.__timeOnlyPickers = {
+      reveal: attachTimeOnlyPicker(document.getElementById("default-reveal-time"), DEFAULT_QUIZ_TIMES.reveal),
+      open: attachTimeOnlyPicker(document.getElementById("default-open-time"), DEFAULT_QUIZ_TIMES.open),
+      close: attachTimeOnlyPicker(document.getElementById("default-close-time"), DEFAULT_QUIZ_TIMES.close)
+    };
+  }
+
   window.__datePickers["quiz-date-picker"].setValue(todayStr);
   loadQuizForDate(todayStr);
   startMonitor(todayStr);
@@ -432,6 +474,20 @@ function startAdmin() {
 /* =========================================================
    탭: 퀴즈 등록
 ========================================================= */
+document.getElementById("show-default-times").addEventListener("change", (e) => {
+  document.getElementById("default-times-area").classList.toggle("hidden", !e.target.checked);
+});
+
+document.getElementById("btn-save-default-times").addEventListener("click", async () => {
+  const defaultQuizTimes = {
+    reveal: window.__timeOnlyPickers.reveal.getValue(),
+    open: window.__timeOnlyPickers.open.getValue(),
+    close: window.__timeOnlyPickers.close.getValue()
+  };
+  await db.ref(`${PATH.CONFIG}/defaultQuizTimes`).set(defaultQuizTimes);
+  document.getElementById("default-times-status").innerText = "✅ 기본 시각이 저장되었습니다. (다음에 새로 등록하는 날짜부터 적용돼요)";
+});
+
 document.getElementById("q-scoring-mode").addEventListener("change", (e) => {
   const isTier = e.target.value === SCORING_MODE.TIER;
   document.getElementById("simple-mode-row").classList.toggle("hidden", isTier);
@@ -502,15 +558,16 @@ async function loadQuizForDate(dateStr) {
   renderImagePreview();
   document.getElementById("q-image-upload").value = "";
 
-  // 새로 등록하는 날짜면 기본 시각(공개/제출 08:00, 마감 14:00)으로 미리 채워줌
+  // 새로 등록하는 날짜면 기본 시각(관리자가 설정한 값, 없으면 08:00/08:00/14:00)으로 미리 채워줌
+  const defaultTimes = currentConfig?.defaultQuizTimes || DEFAULT_QUIZ_TIMES;
   window.__datetimePickers["q-reveal-at"].setValue(
-    meta.revealAt ? formatDateTimeLocal(meta.revealAt) : `${dateStr}T${DEFAULT_QUIZ_TIMES.reveal}`
+    meta.revealAt ? formatDateTimeLocal(meta.revealAt) : `${dateStr}T${defaultTimes.reveal}`
   );
   window.__datetimePickers["q-open-at"].setValue(
-    meta.openAt ? formatDateTimeLocal(meta.openAt) : `${dateStr}T${DEFAULT_QUIZ_TIMES.open}`
+    meta.openAt ? formatDateTimeLocal(meta.openAt) : `${dateStr}T${defaultTimes.open}`
   );
   window.__datetimePickers["q-close-at"].setValue(
-    meta.closeAt ? formatDateTimeLocal(meta.closeAt) : `${dateStr}T${DEFAULT_QUIZ_TIMES.close}`
+    meta.closeAt ? formatDateTimeLocal(meta.closeAt) : `${dateStr}T${defaultTimes.close}`
   );
 
   document.getElementById("q-scoring-mode").value = meta.scoringMode || SCORING_MODE.SIMPLE;

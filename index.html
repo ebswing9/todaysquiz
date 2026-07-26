@@ -21,8 +21,12 @@
       <span id="hud-streak-icon"></span>
       <span id="hud-streak-num">0일 연속</span>
     </span>
-    <button class="hud-crown-btn" id="btn-open-top5" title="TOP 5">👑</button>
   </div>
+</div>
+
+<!-- 하단 바: 왕관(랭킹) / 로그아웃, 로그인 후에만 보임 -->
+<div id="hud-bottom" class="hud-bottom hidden">
+  <button class="hud-crown-btn" id="btn-open-top5">👑 TOP 5</button>
   <button class="hud-logout" id="btn-logout">로그아웃</button>
 </div>
 
@@ -213,6 +217,7 @@ document.getElementById("btn-logout").addEventListener("click", logout);
 --------------------------------------------------------- */
 function startApp() {
   document.getElementById("hud").classList.remove("hidden");
+  document.getElementById("hud-bottom").classList.remove("hidden");
   showView("quiz-view");
 
   db.ref(`${PATH.STUDENTS}/${myId}`).on("value", (snap) => {
@@ -432,9 +437,9 @@ document.getElementById("btn-submit-answer").addEventListener("click", async () 
     await answerRef.update({ correctRank: null, correctAt: null });
   }
 
-  forceEditMode = false;
-
-  const limitReachedNow = retryLimit != null && newAttemptCount >= retryLimit;
+  // 같은 세션에서는 계속 입력 화면을 유지하고 모달로만 확인시켜줌.
+  // 새로고침하거나 나중에 다시 접속하면 그때 "제출 완료" 요약 화면이 보임.
+  forceEditMode = true;
   document.getElementById("submit-modal-answer").innerText = answer;
   document.getElementById("submit-modal-retry").innerText = retryLimit != null
     ? (limitReachedNow ? "더 이상 제출할 수 없습니다." : `남은 제출 횟수: ${retryLimit - newAttemptCount}회`)
