@@ -214,10 +214,27 @@
       </div>
     </div>
 
-    <!-- ============ 탭: 진행 상태 모니터링(오늘) ============ -->
+    <!-- ============ 탭: 진행 상태 모니터링 / 결과 확인 ============ -->
     <div id="tab-monitor" class="tab-panel hidden">
       <div class="panel">
-        <h3 id="monitor-title">오늘 진행 상태</h3>
+        <h3>날짜 선택</h3>
+        <div class="date-picker" data-date-picker>
+          <input type="hidden" id="monitor-date-picker" />
+          <button type="button" class="date-picker-trigger"></button>
+          <div class="date-picker-popup hidden">
+            <div class="dp-header">
+              <button type="button" class="dp-prev">‹</button>
+              <span class="dp-month-label"></span>
+              <button type="button" class="dp-next">›</button>
+            </div>
+            <div class="dp-weekdays"></div>
+            <div class="dp-days"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3 id="monitor-title">진행 상태</h3>
         <p>현재 상태: <strong id="monitor-state-text">-</strong></p>
         <p>제출 인원: <span id="monitor-submit-count">0</span>명 / 정답 확정 인원: <span id="monitor-correct-count">0</span>명</p>
 
@@ -225,6 +242,18 @@
         <button id="btn-force-end" class="danger">🔒 지금 종료</button>
         <button id="btn-reset-force" class="secondary">예약 스케줄대로 되돌리기</button>
         <p id="monitor-status" class="hint-text"></p>
+      </div>
+
+      <div class="panel">
+        <h3>문제 내용</h3>
+        <div id="monitor-question-box">
+          <p class="hint-text">이 날짜에 등록된 퀴즈가 없습니다.</p>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>학생별 제출 현황 (이름을 누르면 제출 내용이 펼쳐져요)</h3>
+        <div id="monitor-student-list" class="list-scroll"></div>
       </div>
     </div>
 
@@ -433,6 +462,7 @@ function startAdmin() {
     renderStudentList();
     renderBrokenStreakList();
     renderAllTimeRanking();
+    if (currentMonitorDate) renderMonitorStudentList();
   });
 
   db.ref(PATH.STREAK_BADGES).on("value", snap => {
@@ -451,6 +481,9 @@ function startAdmin() {
 
     document.getElementById("quiz-date-picker").addEventListener("change", (e) => {
       loadQuizForDate(e.target.value);
+    });
+    document.getElementById("monitor-date-picker").addEventListener("change", (e) => {
+      subscribeMonitorToDate(e.target.value);
     });
   }
 
@@ -477,7 +510,9 @@ function startAdmin() {
 
   window.__datePickers["quiz-date-picker"].setValue(todayStr);
   loadQuizForDate(todayStr);
-  startMonitor(todayStr);
+
+  window.__datePickers["monitor-date-picker"].setValue(todayStr);
+  subscribeMonitorToDate(todayStr);
 
   window.__datePickers["range-start"].setValue(todayStr);
   window.__datePickers["range-end"].setValue(todayStr);
@@ -681,22 +716,45 @@ document.getElementById("btn-save-quiz").addEventListener("click", async () => {
 /* =========================================================
    탭: 진행 상태 모니터링
 ========================================================= */
-function startMonitor(dateStr) {
+let currentMonitorDate = null;
+let __monitorMetaHandler = null;
+let __monitorAnswersHandler = null;
+let __monitorInterval = null;
+let __monitorAnswersCache = {};
+let __monitorAnswerKeyCache = null;
+let expandedStudentId = null;
+
+function subscribeMonitorToDate(dateStr) {
+  if (!dateStr || currentMonitorDate === dateStr) return;
+
+  if (currentMonitorDate) {
+    if (__monitorMetaHandler) db.ref(`${PATH.QUIZZES}/${currentMonitorDate}/meta`).off("value", __monitorMetaHandler);
+    if (__monitorAnswersHandler) db.ref(`${PATH.QUIZZES}/${currentMonitorDate}/answers`).off("value", __monitorAnswersHandler);
+    if (__monitorInterval) clearInterval(__monitorInterval);
+  }
+
+  currentMonitorDate = dateStr;
+  expandedStudentId = null;
   document.getElementById("monitor-title").innerText = `${dateStr} 진행 상태`;
 
-  db.ref(`${PATH.QUIZZES}/${dateStr}/meta`).on("value", snap => {
-    const meta = snap.val();
-    renderMonitor(dateStr, meta);
-  });
-  db.ref(`${PATH.QUIZZES}/${dateStr}/answers`).on("value", snap => {
-    const answers = snap.val() || {};
-    const submitCount = Object.keys(answers).length;
-    const correctCount = Object.values(answers).filter(a => a.correctRank != null).length;
-    document.getElementById("monitor-submit-count").innerText = submitCount;
-    document.getElementById("monitor-correct-count").innerText = correctCount;
+  db.ref(`${PATH.QUIZZES}/${dateStr}/answerKey`).once("value").then(snap => {
+    __monitorAnswerKeyCache = snap.val();
   });
 
-  setInterval(() => {
+  __monitorMetaHandler = (snap) => renderMonitor(dateStr, snap.val());
+  __monitorAnswersHandler = (snap) => {
+    __monitorAnswersCache = snap.val() || {};
+    const submitCount = Object.keys(__monitorAnswersCache).length;
+    const correctCount = Object.values(__monitorAnswersCache).filter(a => a.correctRank != null).length;
+    document.getElementById("monitor-submit-count").innerText = submitCount;
+    document.getElementById("monitor-correct-count").innerText = correctCount;
+    renderMonitorStudentList();
+  };
+
+  db.ref(`${PATH.QUIZZES}/${dateStr}/meta`).on("value", __monitorMetaHandler);
+  db.ref(`${PATH.QUIZZES}/${dateStr}/answers`).on("value", __monitorAnswersHandler);
+
+  __monitorInterval = setInterval(() => {
     db.ref(`${PATH.QUIZZES}/${dateStr}/meta`).once("value").then(snap => renderMonitor(dateStr, snap.val()));
   }, 1000);
 }
@@ -713,29 +771,85 @@ function renderMonitor(dateStr, meta) {
     ? `${stateLabelMap[state]}${meta.forcedState ? " (수동 강제 설정됨)" : ""}`
     : "이 날짜에 등록된 퀴즈가 없습니다.";
 
+  const qBox = document.getElementById("monitor-question-box");
+  if (!meta) {
+    qBox.innerHTML = "<p class='hint-text'>이 날짜에 등록된 퀴즈가 없습니다.</p>";
+  } else {
+    qBox.innerHTML = `
+      <p><strong>${escapeHtml(meta.questionText || "")}</strong></p>
+      ${meta.questionImageData ? `<img src="${meta.questionImageData}" style="max-width:100%; max-height:200px; object-fit:contain; border-radius:10px; border:1px solid var(--border-soft);"/>` : ""}
+      ${meta.type === QUESTION_TYPE.CHOICE ? `<p class="hint-text">선택지: ${(meta.choices || []).map(escapeHtml).join(", ")}</p>` : ""}
+      <p class="hint-text">정답: <strong>${escapeHtml(__monitorAnswerKeyCache?.correctAnswer || "-")}</strong>${__monitorAnswerKeyCache?.explanation ? ` · 해설: ${escapeHtml(__monitorAnswerKeyCache.explanation)}` : ""}</p>
+    `;
+  }
+
   if (state === QUIZ_STATE.CLOSED && meta && meta.scored !== true) {
     tryFinalizeQuizScoring(dateStr).catch(() => {});
   }
 }
 
+function renderMonitorStudentList() {
+  const wrap = document.getElementById("monitor-student-list");
+  const ids = Object.keys(cachedStudents).map(Number).sort((a, b) => a - b);
+  if (ids.length === 0) { wrap.innerHTML = "<p class='hint-text'>학생이 없습니다.</p>"; return; }
+
+  wrap.innerHTML = ids.map(id => {
+    const a = __monitorAnswersCache[id];
+    const submitted = !!a;
+    const expanded = expandedStudentId === String(id);
+    const nickname = cachedStudents[id]?.nickname || `${id}번`;
+
+    let detailHtml = "";
+    if (expanded) {
+      if (submitted) {
+        const correctText = a.correctRank != null ? `✅ 정답 (등수 ${a.correctRank})` : "❌ 오답/미확정";
+        detailHtml = `
+          <div class="hint-text" style="padding:8px 4px 4px;">
+            제출한 답: <strong>${escapeHtml(a.currentAnswer || "-")}</strong><br/>
+            ${correctText} · 시도 횟수: ${a.attemptCount || 0}회
+            ${a.pointsAwarded != null ? ` · 획득 점수: ${a.pointsAwarded}점` : ""}
+          </div>
+        `;
+      } else {
+        detailHtml = `<div class="hint-text" style="padding:8px 4px 4px;">아직 제출한 답이 없습니다.</div>`;
+      }
+    }
+
+    return `
+      <div>
+        <div class="student-row" data-toggle-student="${id}" style="cursor:pointer;">
+          <span>${id}번 · ${escapeHtml(nickname)}</span>
+          <span class="status-badge ${submitted ? "status-online" : "status-offline"}">${submitted ? "제출함" : "미제출"}</span>
+        </div>
+        ${detailHtml}
+      </div>
+    `;
+  }).join("");
+
+  wrap.querySelectorAll("[data-toggle-student]").forEach(row => {
+    row.addEventListener("click", () => {
+      const id = row.dataset.toggleStudent;
+      expandedStudentId = expandedStudentId === id ? null : id;
+      renderMonitorStudentList();
+    });
+  });
+}
+
 document.getElementById("btn-force-open").addEventListener("click", async () => {
-  if (!confirm("예약된 시각과 상관없이 지금 바로 퀴즈를 시작합니다. 계속할까요?")) return;
-  const dateStr = todayKstStr();
-  await db.ref(`${PATH.QUIZZES}/${dateStr}/meta/forcedState`).set("OPEN");
+  if (!confirm(`예약된 시각과 상관없이 ${currentMonitorDate} 퀴즈를 지금 바로 시작합니다. 계속할까요?`)) return;
+  await db.ref(`${PATH.QUIZZES}/${currentMonitorDate}/meta/forcedState`).set("OPEN");
   document.getElementById("monitor-status").innerText = "✅ 지금 시작 처리되었습니다.";
 });
 
 document.getElementById("btn-force-end").addEventListener("click", async () => {
-  if (!confirm("지금 바로 마감하고 정답을 공개합니다. 계속할까요?")) return;
-  const dateStr = todayKstStr();
-  await db.ref(`${PATH.QUIZZES}/${dateStr}/meta/forcedState`).set("END");
-  await tryFinalizeQuizScoring(dateStr);
+  if (!confirm(`${currentMonitorDate} 퀴즈를 지금 바로 마감하고 정답을 공개합니다. 계속할까요?`)) return;
+  await db.ref(`${PATH.QUIZZES}/${currentMonitorDate}/meta/forcedState`).set("END");
+  await tryFinalizeQuizScoring(currentMonitorDate);
   document.getElementById("monitor-status").innerText = "✅ 지금 종료 처리되었습니다.";
 });
 
 document.getElementById("btn-reset-force").addEventListener("click", async () => {
-  const dateStr = todayKstStr();
-  await db.ref(`${PATH.QUIZZES}/${dateStr}/meta/forcedState`).set(null);
+  await db.ref(`${PATH.QUIZZES}/${currentMonitorDate}/meta/forcedState`).set(null);
   document.getElementById("monitor-status").innerText = "예약 스케줄대로 되돌렸습니다.";
 });
 
