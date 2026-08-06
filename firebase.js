@@ -11,15 +11,14 @@
    - Firebase 콘솔 > 프로젝트 설정 > 일반 > 내 앱 > SDK 설정 및 구성 에서 확인 가능합니다.
 --------------------------------------------------------- */
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  databaseURL: "https://YOUR_PROJECT-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "YOUR_PROJECT",
-  storageBucket: "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyAKlIm_ZDD4ICyROlSskTKP5fpSixkSeIU",
+  authDomain: "todaysquiz-5167d.firebaseapp.com",
+  databaseURL: "https://todaysquiz-5167d-default-rtdb.firebaseio.com",
+  projectId: "todaysquiz-5167d",
+  storageBucket: "todaysquiz-5167d.firebasestorage.app",
+  messagingSenderId: "582156880416",
+  appId: "1:582156880416:web:3f750531895cdc5f9a4a45"
 };
-
 
 
 firebase.initializeApp(firebaseConfig);
@@ -310,6 +309,7 @@ function attachDatePicker(wrapper, options) {
       const dateStr = `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
       if (dateStr === input.value) btn.classList.add("selected");
       if (dateStr === todayKstStr()) btn.classList.add("today");
+      if (options.isMarked && options.isMarked(dateStr)) btn.classList.add("dp-day-has-quiz");
       btn.addEventListener("click", () => {
         input.value = dateStr;
         trigger.innerText = formatPrettyDateKr(dateStr);
@@ -342,6 +342,10 @@ function attachDatePicker(wrapper, options) {
     },
     getValue() {
       return input.value;
+    },
+    // 표시(예: 퀴즈 등록 여부) 데이터가 나중에 바뀌었을 때, 열려 있는 달력을 다시 그려서 반영
+    refresh() {
+      renderCalendar();
     }
   };
 }
