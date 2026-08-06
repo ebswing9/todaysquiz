@@ -635,6 +635,7 @@ input[type="checkbox"]:checked::after {
 }
 
 .dp-day {
+  position: relative;
   width: auto;
   margin: 0;
   padding: 0;
@@ -650,6 +651,20 @@ input[type="checkbox"]:checked::after {
 .dp-day.selected { background: var(--accent-violet); color: var(--text-main); font-weight: 700; }
 .dp-day.today:not(.selected) { border: 1.5px solid var(--accent-gold); }
 .dp-day-blank { visibility: hidden; }
+
+/* 이미 퀴즈가 등록된 날짜: 숫자 아래에 작은 점으로 표시 */
+.dp-day-has-quiz::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 3px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--accent-gold);
+  transform: translateX(-50%);
+}
+.dp-day-has-quiz.selected::after { background: var(--text-main); }
 
 .dp-time-row {
   display: flex;

@@ -387,6 +387,7 @@
 let currentConfig = null;
 let cachedStudents = {};
 let cachedBadges = null;
+let quizDatesSet = new Set(); // 퀴즈가 이미 등록된 날짜(YYYY-MM-DD) 목록 - 달력 표시용
 
 /* ---------------------------------------------------------
    탭 전환
@@ -478,7 +479,7 @@ function startAdmin() {
     window.__datePickers = {};
     document.querySelectorAll("[data-date-picker]").forEach(wrapper => {
       const inputId = wrapper.querySelector("input[type=hidden]").id;
-      window.__datePickers[inputId] = attachDatePicker(wrapper);
+      window.__datePickers[inputId] = attachDatePicker(wrapper, { isMarked: (d) => quizDatesSet.has(d) });
     });
 
     document.getElementById("quiz-date-picker").addEventListener("change", (e) => {
@@ -486,6 +487,12 @@ function startAdmin() {
     });
     document.getElementById("monitor-date-picker").addEventListener("change", (e) => {
       subscribeMonitorToDate(e.target.value);
+    });
+
+    // 퀴즈가 등록되어 있는 날짜 목록을 불러와서, 달력에 점으로 표시
+    db.ref(PATH.QUIZZES).once("value").then(snap => {
+      quizDatesSet = new Set(Object.keys(snap.val() || {}));
+      Object.values(window.__datePickers).forEach(p => p.refresh());
     });
   }
 
@@ -711,6 +718,11 @@ document.getElementById("btn-save-quiz").addEventListener("click", async () => {
 
   await db.ref(`${PATH.QUIZZES}/${dateStr}/meta`).set(meta);
   await db.ref(`${PATH.QUIZZES}/${dateStr}/answerKey`).set({ correctAnswer, explanation });
+
+  quizDatesSet.add(dateStr);
+  if (window.__datePickers && window.__datePickers["quiz-date-picker"]) {
+    window.__datePickers["quiz-date-picker"].refresh();
+  }
 
   status.innerText = `✅ ${dateStr} 퀴즈가 저장되었습니다.`;
 });
